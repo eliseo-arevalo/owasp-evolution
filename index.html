@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.">
+  <meta name="theme-color" content="#ffffff">
+  <title>OWASP Evolution</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#timeline">Saltar al explorador</a>
+
+  <header class="topbar">
+    <a class="brand" href="#/web/2025/A01" aria-label="OWASP Evolution, inicio">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>OWASP Evolution</span>
+    </a>
+    <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
+    <span class="unofficial">Proyecto educativo no oficial</span>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">EXPLORADOR DE CATEGORÍAS DE RIESGO</p>
+        <h1 id="page-title">Entender qué cambió,<br>no memorizar una lista.</h1>
+      </div>
+      <div class="intro-copy">
+        <p id="family-description"></p>
+        <p>Selecciona una categoría para seguir su linaje, entender el cambio de alcance y revisar medidas preventivas.</p>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Herramientas del explorador">
+      <div class="search-wrap">
+        <label for="risk-search">Buscar categoría, identificador o concepto</label>
+        <div class="search-control">
+          <svg aria-hidden="true" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"></circle><path d="m10.5 10.5 3 3"></path></svg>
+          <input id="risk-search" type="search" autocomplete="off" placeholder="Ej. acceso, inyección, LLM03">
+          <kbd>/</kbd>
+        </div>
+        <div id="search-results" class="search-results" hidden></div>
+      </div>
+      <div class="legend" aria-label="Leyenda de relaciones">
+        <span><i class="legend-line line-continues"></i>Continúa / se mueve</span>
+        <span><i class="legend-line line-renamed"></i>Se renombra</span>
+        <span><i class="legend-line line-merged"></i>Se fusiona / amplía</span>
+      </div>
+    </section>
+
+    <section class="explorer-shell">
+      <div class="timeline-panel" id="timeline">
+        <div class="timeline-heading">
+          <div>
+            <p class="eyebrow">EVOLUCIÓN</p>
+            <h2 id="timeline-title"></h2>
+          </div>
+          <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
+        </div>
+        <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Línea de tiempo desplazable">
+          <div class="timeline-stage" id="timeline-stage">
+            <svg class="connector-layer" id="connector-layer" aria-hidden="true"></svg>
+            <div class="timeline-grid" id="timeline-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="inspector" id="inspector" aria-live="polite" aria-label="Detalle de la categoría"></aside>
+    </section>
+
+    <section class="method" aria-labelledby="method-title">
+      <p class="eyebrow">CÓMO LEER EL PROYECTO</p>
+      <h2 id="method-title">Las listas cambian porque cambia el riesgo.</h2>
+      <div class="method-grid">
+        <p><strong>Posición</strong><span>La clasificación refleja prioridad relativa en una edición, no una puntuación universal.</span></p>
+        <p><strong>Linaje</strong><span>Una categoría puede renombrarse, ampliar su alcance, absorber otras o dividirse.</span></p>
+        <p><strong>Detalle</strong><span>Los nombres se conservan en inglés; las explicaciones y medidas están resumidas en español.</span></p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Fuentes oficiales de OWASP enlazadas en cada categoría.</p>
+    <p>Actualizado con OWASP Top 10:2025 y OWASP GenAI LLM Top 10:2026.</p>
+  </footer>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
