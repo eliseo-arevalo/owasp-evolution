@@ -23,12 +23,11 @@
   <main>
     <section class="intro" aria-labelledby="page-title">
       <div>
-        <p class="eyebrow">EXPLORADOR DE CATEGORÍAS DE RIESGO</p>
-        <h1 id="page-title">Entender qué cambió,<br>no memorizar una lista.</h1>
+        <p class="eyebrow">OWASP EVOLUTION / 2013—2026</p>
+        <h1 id="page-title">El Top 10, edición por edición.</h1>
       </div>
       <div class="intro-copy">
         <p id="family-description"></p>
-        <p>Selecciona una categoría para seguir su linaje, entender el cambio de alcance y revisar medidas preventivas.</p>
       </div>
     </section>
 
@@ -56,9 +55,15 @@
             <p class="eyebrow">EVOLUCIÓN</p>
             <h2 id="timeline-title"></h2>
           </div>
-          <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
+          <div class="timeline-meta">
+            <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
+            <button class="detail-trigger" id="open-inspector" aria-controls="inspector" aria-expanded="false" type="button">
+              <span id="detail-trigger-label"></span>
+              <span>Ver detalle →</span>
+            </button>
+          </div>
         </div>
-        <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Línea de tiempo desplazable">
+        <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Matriz de evolución de categorías">
           <div class="timeline-stage" id="timeline-stage">
             <svg class="connector-layer" id="connector-layer" aria-hidden="true"></svg>
             <div class="timeline-grid" id="timeline-grid"></div>
@@ -66,7 +71,7 @@
         </div>
       </div>
 
-      <aside class="inspector" id="inspector" aria-live="polite" aria-label="Detalle de la categoría"></aside>
+      <aside class="inspector" id="inspector" role="dialog" aria-modal="false" aria-labelledby="inspector-title" aria-live="polite" aria-hidden="true" tabindex="-1"></aside>
     </section>
 
     <section class="method" aria-labelledby="method-title">

@@ -1,4 +1,5 @@
 import { catalog } from './data.js';
+import { resetScrollPosition, scheduleFocus, shouldRefocusWithin } from './focus.js';
 import {
   flattenCatalog,
   searchRisks,
@@ -12,10 +13,13 @@ import {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const elements = {
+  brand: document.querySelector('.brand'),
   familyNav: document.querySelector('#family-nav'),
   familyDescription: document.querySelector('#family-description'),
   timelineTitle: document.querySelector('#timeline-title'),
   timelineHelp: document.querySelector('#timeline-help'),
+  openInspector: document.querySelector('#open-inspector'),
+  detailTriggerLabel: document.querySelector('#detail-trigger-label'),
   timelineStage: document.querySelector('#timeline-stage'),
   timelineGrid: document.querySelector('#timeline-grid'),
   connectorLayer: document.querySelector('#connector-layer'),
@@ -27,6 +31,9 @@ const elements = {
 let currentRoute = resolveRouteState(location.hash, catalog).route;
 let activeEdges = [];
 let drawFrame = 0;
+let inspectorOpen = false;
+let focusInspectorAfterRender = false;
+let resolveInspectorReturn = () => elements.openInspector;
 
 function node(tag, className, text) {
   const element = document.createElement(tag);
@@ -35,7 +42,40 @@ function node(tag, className, text) {
   return element;
 }
 
-function navigate(route) {
+function syncInspectorVisibility({ focus = false } = {}) {
+  elements.inspector.classList.toggle('is-open', inspectorOpen);
+  elements.inspector.setAttribute('aria-hidden', String(!inspectorOpen));
+  elements.openInspector.setAttribute('aria-expanded', String(inspectorOpen));
+  elements.inspector.inert = !inspectorOpen;
+  if (focus && inspectorOpen) {
+    resetScrollPosition(elements.inspector);
+    scheduleFocus(
+      () => elements.inspector.querySelector('.inspector-close'),
+      () => elements.inspector,
+    );
+  }
+}
+
+function setInspectorOpen(open, {
+  focus = false,
+  restoreFocus = true,
+  returnFocus,
+} = {}) {
+  inspectorOpen = open;
+  if (open && returnFocus) resolveInspectorReturn = returnFocus;
+  syncInspectorVisibility({ focus });
+  if (!open && restoreFocus) {
+    scheduleFocus(resolveInspectorReturn, () => elements.openInspector);
+  }
+}
+
+function navigate(route, {
+  openInspector = inspectorOpen,
+  returnFocus,
+} = {}) {
+  inspectorOpen = openInspector;
+  focusInspectorAfterRender = openInspector;
+  if (openInspector && returnFocus) resolveInspectorReturn = returnFocus;
   const nextHash = formatRoute(route);
   if (location.hash === nextHash) render();
   else location.hash = nextHash;
@@ -49,7 +89,7 @@ function renderFamilyNav() {
     if (family.id === currentRoute.family) button.setAttribute('aria-current', 'page');
     button.addEventListener('click', () => {
       const edition = family.editions.find((item) => item.year === family.defaultYear) ?? family.editions.at(-1);
-      navigate({ family: family.id, year: edition.year, id: edition.items[0].id });
+      navigate({ family: family.id, year: edition.year, id: edition.items[0].id }, { openInspector: false });
       elements.search.value = '';
       hideSearchResults();
     });
@@ -69,6 +109,7 @@ function riskWithContext(family, edition, risk) {
 function renderTimeline(family, lineage) {
   elements.timelineGrid.replaceChildren();
   elements.timelineGrid.style.setProperty('--edition-count', family.editions.length);
+  elements.timelineGrid.dataset.editions = String(family.editions.length);
   const relatedKeys = new Set(lineage.nodes.map((item) => item.key));
   const selectedKey = `${currentRoute.year}:${currentRoute.id}`;
 
@@ -92,6 +133,9 @@ function renderTimeline(family, lineage) {
       button.type = 'button';
       button.dataset.key = risk.key;
       button.setAttribute('aria-label', `${risk.id}: ${risk.name}, edición ${risk.year}`);
+      button.setAttribute('aria-controls', 'inspector');
+      button.setAttribute('aria-haspopup', 'dialog');
+      button.title = risk.change || `${risk.id} · ${risk.name}`;
 
       if (risk.key === selectedKey) button.classList.add('is-selected');
       else if (relatedKeys.has(risk.key)) button.classList.add('is-related');
@@ -102,7 +146,13 @@ function renderTimeline(family, lineage) {
       copy.append(node('span', 'risk-name', risk.name));
       if (risk.change) copy.append(node('span', 'risk-change', risk.change));
       button.append(rank, copy);
-      button.addEventListener('click', () => navigate({ family: family.id, year: edition.year, id: risk.id }));
+      button.addEventListener('click', () => navigate(
+        { family: family.id, year: edition.year, id: risk.id },
+        {
+          openInspector: true,
+          returnFocus: () => elements.timelineStage.querySelector(`[data-key="${risk.key}"]`),
+        },
+      ));
       list.append(button);
     }
 
@@ -118,11 +168,18 @@ function renderInspector(family, risk, lineage) {
   elements.inspector.replaceChildren();
   const edition = getEdition(catalog, family.id, risk.year);
 
+  const top = node('div', 'inspector-top');
   const code = node('div', 'inspector-code');
   code.append(node('span', '', `${risk.id} · ${risk.year}`));
   if (edition.status === 'Vigente') code.append(node('span', 'inspector-current', 'Vigente'));
+  const close = node('button', 'inspector-close', 'Cerrar');
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Cerrar detalle');
+  close.addEventListener('click', () => setInspectorOpen(false));
+  top.append(code, close);
 
   const heading = node('h2', '', risk.name);
+  heading.id = 'inspector-title';
   const summary = node('p', 'inspector-summary', risk.summary);
 
   const prevention = node('section', 'inspector-section');
@@ -170,7 +227,9 @@ function renderInspector(family, risk, lineage) {
   source.rel = 'noopener noreferrer';
   linkSection.append(source);
 
-  elements.inspector.append(code, heading, summary, prevention, history, relations, linkSection);
+  elements.inspector.append(top, heading, summary, prevention, history, relations, linkSection);
+  syncInspectorVisibility({ focus: focusInspectorAfterRender });
+  focusInspectorAfterRender = false;
 }
 
 function scheduleConnections() {
@@ -226,13 +285,18 @@ function renderSearchResults(query) {
     for (const result of results) {
       const button = node('button', 'search-result');
       button.type = 'button';
+      button.setAttribute('aria-controls', 'inspector');
+      button.setAttribute('aria-haspopup', 'dialog');
       button.append(
         node('span', 'search-result-id', result.id),
         node('span', 'search-result-name', result.name),
         node('span', 'search-result-year', String(result.year)),
       );
       button.addEventListener('click', () => {
-        navigate({ family: result.family, year: result.year, id: result.id });
+        navigate(
+          { family: result.family, year: result.year, id: result.id },
+          { openInspector: true, returnFocus: () => elements.search },
+        );
         elements.search.value = '';
         hideSearchResults();
       });
@@ -247,6 +311,9 @@ function hideSearchResults() {
 }
 
 function render() {
+  if (shouldRefocusWithin(elements.inspector, document.activeElement, inspectorOpen)) {
+    focusInspectorAfterRender = true;
+  }
   const routeState = resolveRouteState(location.hash, catalog);
   currentRoute = routeState.route;
   if (routeState.changed) history.replaceState(null, '', routeState.canonicalHash);
@@ -258,7 +325,8 @@ function render() {
   renderFamilyNav();
   elements.familyDescription.textContent = family.description;
   elements.timelineTitle.textContent = family.label;
-  elements.timelineHelp.textContent = `${lineage.nodes.length} categoría${lineage.nodes.length === 1 ? '' : 's'} conectada${lineage.nodes.length === 1 ? '' : 's'} en ${family.editions.length} ediciones.`;
+  elements.timelineHelp.textContent = `${family.editions.length} ediciones · ${lineage.nodes.length} nodo${lineage.nodes.length === 1 ? '' : 's'} en el linaje`;
+  elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
   renderTimeline(family, lineage);
   renderInspector(family, selected, lineage);
   document.title = `${selected.id} ${selected.name} · OWASP Evolution`;
@@ -266,6 +334,11 @@ function render() {
 
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));
+elements.brand.addEventListener('click', () => setInspectorOpen(false, { restoreFocus: false }));
+elements.openInspector.addEventListener('click', () => setInspectorOpen(true, {
+  focus: true,
+  returnFocus: () => elements.openInspector,
+}));
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.search-wrap')) hideSearchResults();
 });
@@ -276,6 +349,10 @@ document.addEventListener('keydown', (event) => {
     elements.search.focus();
   }
   if (event.key === 'Escape') {
+    if (inspectorOpen) {
+      setInspectorOpen(false);
+      return;
+    }
     elements.search.value = '';
     hideSearchResults();
     elements.search.blur();

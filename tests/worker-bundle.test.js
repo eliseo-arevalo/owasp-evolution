@@ -10,6 +10,7 @@ test('bundles every public asset into a deployable Worker module', async () => {
     '/styles.css',
     '/src/app.js',
     '/src/data.js',
+    '/src/focus.js',
     '/src/model.js',
     '/assets/fonts/Geist-Regular.ttf',
     '/assets/fonts/GeistMono-Regular.ttf',

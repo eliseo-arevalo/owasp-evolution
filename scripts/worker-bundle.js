@@ -7,6 +7,7 @@ const PUBLIC_ASSETS = [
   ['styles.css', 'text/css; charset=utf-8'],
   ['src/app.js', 'text/javascript; charset=utf-8'],
   ['src/data.js', 'text/javascript; charset=utf-8'],
+  ['src/focus.js', 'text/javascript; charset=utf-8'],
   ['src/model.js', 'text/javascript; charset=utf-8'],
   ['assets/fonts/Geist-Regular.ttf', 'font/ttf'],
   ['assets/fonts/Geist-Medium.ttf', 'font/ttf'],
