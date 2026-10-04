@@ -84,7 +84,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     yearFilters: new Map([['web', years]]),
     getRisk: () => ({ id: 'A01', name: 'Access control' }),
     getLineage: () => ({ nodes: [] }),
-    applyStaticLanguage() {}, language: 'es', matrixSignature: '', wasDetail: false,
+    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
     document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: {
       matrixPage: { hidden: false },
@@ -94,6 +94,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     },
     renderFamilyNav() {}, renderEditionFilter() {}, visibleEditions: () => [2021, 2025],
     renderTimeline: () => calls.push('matrix'), renderDetail: () => calls.push('detail'),
+    renderLineageSummary() {}, applySelection() {},
     scheduleFocus: (resolve) => calls.push(resolve() === row ? 'row focus' : 'modal focus'),
     resolveDetailReturn: () => row, scheduleConnections() {},
   });
@@ -108,3 +109,42 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
   assert.equal(calls.filter((call) => call === 'matrix').length, 1);
   assert.deepEqual([...years], [2021, 2025]);
 });
+
+test('selecting another row keeps the matrix and only moves the selection', () => {
+  const calls = [];
+  let route = { family: 'web', year: 2025, id: 'A01' };
+  const context = vm.createContext({
+    location: { hash: '' },
+    resolveRouteState: () => ({ route }),
+    currentRoute: null, catalog: { families: { web: { id: 'web', description: '', label: '' } } },
+    yearFilters: new Map([['web', new Set([2025])]]),
+    getRisk: () => ({ id: route.id, name: '' }),
+    getLineage: () => ({ nodes: [] }),
+    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
+    document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
+    elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
+    renderFamilyNav() {}, renderEditionFilter() {},
+    renderTimeline: () => calls.push('matrix'), renderLineageSummary: () => calls.push('path'),
+    applySelection: (key) => calls.push(`select ${key}`),
+  });
+  const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
+  vm.runInContext(renderSource + '\nrender();', context);
+  route = { family: 'web', year: 2025, id: 'A05' };
+  vm.runInContext('render();', context);
+  assert.deepEqual(calls, ['matrix', 'path', 'select 2025:A01', 'path', 'select 2025:A05']);
+});
+
+test('hover and focus preview without navigating; arrows move between rows', () => {
+  const preview = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("window.addEventListener('hashchange'"));
+  assert.doesNotMatch(preview, /navigate\(|location\.hash|history\./);
+  assert.match(app, /applyEmphasis\(hoverKey \?\? focusKey \?\? selectedKey\)/);
+  for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) assert.match(app, new RegExp(`'${key}'`));
+  assert.match(app, /primaryNeighbor\(activeEdges, card\.dataset\.key/);
+  assert.match(app, /button\.addEventListener\('click', \(\) => navigate\(/);
+});
+
+test('row tooltips start with the full official name and the counter never says nodes', () => {
+  assert.match(app, /button\.title = \[risk\.name,/);
+  assert.doesNotMatch(app, /nodos|lineage nodes/);
+});
+

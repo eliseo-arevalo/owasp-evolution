@@ -1,6 +1,18 @@
 import { detectLanguage, readLanguagePreference, saveLanguagePreference } from './locale.js';
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
-import { defaultVisibleYears, visibleEditions, visibleConnections } from './editions.js';
+import {
+  defaultVisibleYears,
+  visibleEditions,
+  visibleConnections,
+  relationKind,
+  lineageKinds,
+  primaryNeighbor,
+  rowCues,
+  lineagePath,
+  formatLineagePath,
+  yearOf,
+  idOf,
+} from './editions.js';
 import { catalog as sourceCatalog } from './data.js';
 import { scheduleFocus } from './focus.js';
 import {
@@ -44,8 +56,13 @@ const elements = {
 
 let currentRoute = resolveRouteState(location.hash, catalog).route;
 let activeEdges = [];
+let litEdges = new Set();
 let drawFrame = 0;
 let matrixSignature = '';
+let structureSignature = '';
+let selectedKey = '';
+let hoverKey = null;
+let focusKey = null;
 let matrixReturnHash = null;
 let wasDetail = false;
 const resolveDetailReturn = () => elements.timelineStage.querySelector('.is-selected .risk-focus');
@@ -104,74 +121,72 @@ function riskWithContext(family, edition, risk) {
   };
 }
 
-function renderTimeline(family, lineage) {
+const edgeKey = (edge) => `${edge.from}>${edge.to}`;
+const cardByKey = (key) => elements.timelineGrid.querySelector(`.risk-card[data-key="${CSS.escape(key)}"]`);
+
+function cueDescriptions(cue) {
+  const es = language === 'es';
+  return [
+    cue.isNew && (es ? 'nueva en esta edición' : 'new in this edition'),
+    cue.hiddenBefore && (es ? `predecesora en ${cue.hiddenBefore}, edición oculta` : `predecessor in ${cue.hiddenBefore}, hidden edition`),
+    cue.hiddenAfter && (es ? `sucesora en ${cue.hiddenAfter}, edición oculta` : `successor in ${cue.hiddenAfter}, hidden edition`),
+    cue.leaves && (es ? `sale del Top 10 en ${cue.leaves}` : `leaves the Top 10 in ${cue.leaves}`),
+  ].filter(Boolean);
+}
+
+function riskCues(cue) {
+  const cues = node('span', 'risk-cues');
+  cues.setAttribute('aria-hidden', 'true');
+  if (cue.isNew) cues.append(node('span', 'risk-cue', t('nueva')));
+  if (cue.hiddenBefore) cues.append(node('span', 'risk-cue is-faint', `← ${cue.hiddenBefore}`));
+  if (cue.hiddenAfter) cues.append(node('span', 'risk-cue is-faint', `→ ${cue.hiddenAfter}`));
+  if (cue.leaves) cues.append(node('span', 'risk-exit'));
+  return cues.childElementCount ? cues : null;
+}
+
+function renderTimeline(family) {
   const years = yearFilters.get(family.id);
   const editions = visibleEditions(family, years);
+  const cues = rowCues(family, years);
   elements.timelineGrid.replaceChildren();
   elements.timelineGrid.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.dataset.editions = String(editions.length);
-  const relatedKeys = new Set(lineage.nodes.map((item) => item.key));
-  const selectedKey = `${currentRoute.year}:${currentRoute.id}`;
-  const connections = visibleConnections(family, years, lineage.edges);
-  const relationColors = new Map();
-  const relationVariable = (type) => type === 'renamed' ? '--renamed'
-    : ['merged', 'expanded', 'consolidated'].includes(type) ? '--merged' : '--continues';
-  // Prefer the relation directly touching the selection when a node has multiple edges.
-  const lineageConnections = connections.filter((edge) => edge.highlighted);
-  lineageConnections.sort((a, b) => Number(a.from === selectedKey || a.to === selectedKey)
-    - Number(b.from === selectedKey || b.to === selectedKey));
-  for (const edge of lineageConnections) {
-    relationColors.set(edge.from, relationVariable(edge.type));
-    relationColors.set(edge.to, relationVariable(edge.type));
-  }
+  hoverKey = null;
+  focusKey = null;
 
   for (const edition of editions) {
     const column = node('section', 'edition-column');
     column.setAttribute('aria-labelledby', `edition-${family.id}-${edition.year}`);
 
     const header = node('header', 'edition-header');
-    const meta = node('div', 'edition-meta');
-    meta.append(node('span', '', `${edition.items.length} ${language === 'es' ? 'categorías' : 'categories'}`));
-    const status = node('span', `edition-status${edition.status === t('Vigente') ? ' current' : ''}`, edition.status);
-    meta.append(status);
     const year = node('h3', 'edition-year', String(edition.year));
     year.id = `edition-${family.id}-${edition.year}`;
-    header.append(meta, year);
+    header.append(year);
+    if (edition.status === t('Vigente')) header.append(node('span', 'edition-status', edition.status));
 
     const list = node('div', 'risk-list');
     for (const rawRisk of edition.items) {
       const risk = riskWithContext(family, edition, rawRisk);
+      const cue = cues.get(risk.key);
       const card = node('div', 'risk-card');
       const button = node('button', 'risk-focus');
       button.type = 'button';
+      button.tabIndex = -1;
       card.dataset.key = risk.key;
-      if (relationColors.has(risk.key)) {
-        card.style.setProperty('--relation-color', `var(${relationColors.get(risk.key)})`);
-      }
-      button.setAttribute('aria-label', `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`);
-      button.title = risk.change || `${risk.id} · ${risk.name}`;
-
-      if (risk.key === selectedKey) card.classList.add('is-selected');
-      else if (relatedKeys.has(risk.key)) card.classList.add('is-related');
-      else if (lineage.nodes.length > 1) card.classList.add('is-dimmed');
+      const label = `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`;
+      button.setAttribute('aria-label', [label, ...cueDescriptions(cue)].join(', '));
+      button.title = [risk.name, `${risk.id} · ${risk.year}`, risk.change].filter(Boolean).join('\n');
 
       const rank = node('span', 'risk-rank', String(risk.rank).padStart(2, '0'));
       const copy = node('span', 'risk-copy');
       copy.append(node('span', 'risk-name', risk.name));
-      if (risk.change) copy.append(node('span', 'risk-change', risk.change));
       button.append(rank, copy);
+      const marks = riskCues(cue);
+      if (marks) button.append(marks);
       button.addEventListener('click', () => navigate(
         { family: family.id, year: edition.year, id: risk.id },
       ));
       card.append(button);
-      if (risk.key === selectedKey) {
-        button.setAttribute('aria-current', 'true');
-        const detail = node('button', 'risk-detail', t('Detalle'));
-        detail.type = 'button';
-        detail.setAttribute('aria-haspopup', 'dialog');
-        detail.addEventListener('click', openDetail);
-        card.append(detail);
-      }
       list.append(card);
     }
 
@@ -179,8 +194,84 @@ function renderTimeline(family, lineage) {
     elements.timelineGrid.append(column);
   }
 
-  activeEdges = connections;
+  activeEdges = visibleConnections(family, years);
   scheduleConnections();
+}
+
+// Selection only moves classes and the Detail button, so rows and connectors can transition.
+function applySelection(key) {
+  selectedKey = key;
+  for (const card of elements.timelineGrid.querySelectorAll('.risk-card')) {
+    const selected = card.dataset.key === key;
+    const button = card.querySelector('.risk-focus');
+    card.classList.toggle('is-selected', selected);
+    button.tabIndex = selected ? 0 : -1;
+    if (selected) button.setAttribute('aria-current', 'true');
+    else button.removeAttribute('aria-current');
+  }
+  elements.timelineGrid.querySelector('.risk-detail-wrap')?.remove();
+  const card = cardByKey(key);
+  if (card) {
+    const wrap = node('span', 'risk-detail-wrap');
+    const detail = node('button', 'risk-detail', t('Detalle'));
+    detail.type = 'button';
+    detail.setAttribute('aria-haspopup', 'dialog');
+    detail.addEventListener('click', openDetail);
+    wrap.append(detail);
+    card.append(wrap);
+  }
+  updateEmphasis();
+}
+
+function updateEmphasis() {
+  applyEmphasis(hoverKey ?? focusKey ?? selectedKey);
+}
+
+// Emphasize one row's lineage: the selection, or a hovered or focused row being previewed.
+function applyEmphasis(key) {
+  const family = catalog.families[currentRoute.family];
+  const years = yearFilters.get(family.id);
+  const lineage = getLineage(catalog, family.id, yearOf(key), idOf(key));
+  const connections = visibleConnections(family, years, lineage.edges);
+  const kinds = lineageKinds(connections, key);
+  const related = new Set(lineage.nodes.filter((item) => years.has(item.year) && item.key !== key).map((item) => item.key));
+  const linked = related.size > 0;
+  litEdges = new Set(connections.filter((edge) => edge.highlighted).map(edgeKey));
+
+  elements.timelineStage.classList.toggle('has-lineage', linked);
+  for (const card of elements.timelineGrid.querySelectorAll('.risk-card')) {
+    const cardKey = card.dataset.key;
+    card.classList.toggle('is-anchor', cardKey === key);
+    card.classList.toggle('is-related', related.has(cardKey));
+    card.classList.toggle('is-dimmed', linked && cardKey !== key && !related.has(cardKey));
+    if (kinds.has(cardKey)) card.style.setProperty('--relation-color', `var(--${kinds.get(cardKey)})`);
+    else card.style.removeProperty('--relation-color');
+  }
+  for (const path of elements.connectorLayer.children) {
+    path.classList.toggle('is-highlighted', litEdges.has(path.dataset.edge));
+  }
+}
+
+function renderLineageSummary(family, lineage) {
+  const path = lineagePath(lineage.nodes, yearFilters.get(family.id));
+  const { route, hidden } = formatLineagePath(path, language === 'es' ? 'en' : 'in');
+  elements.timelineHelp.replaceChildren(node('span', 'path-route', route));
+  for (const text of hidden) elements.timelineHelp.append(node('span', 'path-hidden', text));
+}
+
+function rowTarget(card, key) {
+  if (key === 'ArrowUp') return card.previousElementSibling;
+  if (key === 'ArrowDown') return card.nextElementSibling;
+  if (key === 'Home') return card.parentElement.firstElementChild;
+  if (key === 'End') return card.parentElement.lastElementChild;
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight') return null;
+  const neighbor = primaryNeighbor(activeEdges, card.dataset.key, key === 'ArrowRight' ? 'next' : 'previous');
+  if (neighbor) return cardByKey(neighbor);
+  // Rows without a visible relation fall back to the same position in the adjacent edition.
+  const column = card.closest('.edition-column');
+  const adjacent = key === 'ArrowRight' ? column.nextElementSibling : column.previousElementSibling;
+  const index = [...card.parentElement.children].indexOf(card);
+  return adjacent?.querySelectorAll('.risk-card')[index] ?? null;
 }
 
 function renderEditionFilter(family) {
@@ -283,7 +374,6 @@ function scheduleConnections() {
 function drawConnections() {
   const stage = elements.timelineStage;
   const svg = elements.connectorLayer;
-  svg.replaceChildren();
   const stageRect = stage.getBoundingClientRect();
   const width = stage.scrollWidth;
   const height = stage.scrollHeight;
@@ -291,8 +381,11 @@ function drawConnections() {
   svg.setAttribute('width', width);
   svg.setAttribute('height', height);
 
+  // Paths are reused across redraws so emphasis changes fade instead of popping.
+  const previous = new Map([...svg.children].map((path) => [path.dataset.edge, path]));
   const cards = new Map([...stage.querySelectorAll('.risk-card')].map((card) => [card.dataset.key, card]));
-  for (const edge of activeEdges) {
+  const ordered = [...activeEdges].sort((a, b) => Number(litEdges.has(edgeKey(a))) - Number(litEdges.has(edgeKey(b))));
+  for (const edge of ordered) {
     const source = cards.get(edge.from);
     const target = cards.get(edge.to);
     if (!source || !target) continue;
@@ -305,14 +398,16 @@ function drawConnections() {
     const endY = targetRect.top - stageRect.top + targetRect.height / 2;
     const distance = endX - startX;
 
-    const path = document.createElementNS(SVG_NS, 'path');
+    const key = edgeKey(edge);
+    const path = previous.get(key) ?? document.createElementNS(SVG_NS, 'path');
+    previous.delete(key);
     path.setAttribute('d', `M ${startX} ${startY} C ${startX + distance * .46} ${startY}, ${endX - distance * .46} ${endY}, ${endX} ${endY}`);
-    path.classList.add(edge.type);
-    if (edge.highlighted) path.classList.add('is-highlighted');
-    path.dataset.from = edge.from;
-    path.dataset.to = edge.to;
+    path.setAttribute('class', relationKind(edge.type));
+    path.classList.toggle('is-highlighted', litEdges.has(key));
+    path.dataset.edge = key;
     svg.append(path);
   }
+  for (const stale of previous.values()) stale.remove();
 }
 
 function renderSearchResults(query) {
@@ -368,16 +463,21 @@ function render() {
   document.querySelector('#language-select').value = language;
   const detail = Boolean(currentRoute.detail);
   document.body.classList.toggle('detail-open', detail);
-  const signature = JSON.stringify([family.id, currentRoute.year, currentRoute.id, language, [...yearFilters.get(family.id)]]);
+  const structure = JSON.stringify([family.id, language, [...yearFilters.get(family.id)]]);
+  const signature = JSON.stringify([structure, currentRoute.year, currentRoute.id]);
   renderFamilyNav();
   if (signature !== matrixSignature) {
     matrixSignature = signature;
-    renderEditionFilter(family);
-    elements.familyDescription.textContent = family.description;
-    elements.timelineTitle.textContent = family.label;
-    elements.timelineHelp.textContent = `${visibleEditions(family, yearFilters.get(family.id)).length} ${language === 'es' ? 'ediciones' : 'editions'} · ${lineage.nodes.length} ${language === 'es' ? 'nodos en el linaje' : 'lineage nodes'}`;
+    if (structure !== structureSignature) {
+      structureSignature = structure;
+      renderEditionFilter(family);
+      elements.familyDescription.textContent = family.description;
+      elements.timelineTitle.textContent = family.label;
+      renderTimeline(family);
+    }
+    renderLineageSummary(family, lineage);
     elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
-    renderTimeline(family, lineage);
+    applySelection(selected.key);
   }
   if (detail) {
     renderDetail(family, selected, lineage);
@@ -428,6 +528,42 @@ document.addEventListener('keydown', (event) => {
     hideSearchResults();
     elements.search.blur();
   }
+});
+elements.timelineGrid.addEventListener('keydown', (event) => {
+  const card = event.target.closest('.risk-focus')?.closest('.risk-card');
+  if (!card || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const target = rowTarget(card, event.key);
+  if (!target) return;
+  event.preventDefault();
+  target.querySelector('.risk-focus').focus();
+});
+// Hover and focus preview a row's lineage without touching the selection or the URL.
+elements.timelineGrid.addEventListener('pointerover', (event) => {
+  if (event.pointerType === 'touch') return;
+  const key = event.target.closest('.risk-card')?.dataset.key;
+  if (!key || key === hoverKey) return;
+  hoverKey = key;
+  updateEmphasis();
+});
+elements.timelineGrid.addEventListener('pointerleave', () => {
+  if (hoverKey === null) return;
+  hoverKey = null;
+  updateEmphasis();
+});
+elements.timelineGrid.addEventListener('focusin', (event) => {
+  const button = event.target.closest('.risk-focus');
+  if (!button) return;
+  for (const other of elements.timelineGrid.querySelectorAll('.risk-focus')) other.tabIndex = other === button ? 0 : -1;
+  focusKey = button.closest('.risk-card').dataset.key;
+  updateEmphasis();
+});
+elements.timelineGrid.addEventListener('focusout', (event) => {
+  if (elements.timelineGrid.contains(event.relatedTarget)) return;
+  for (const other of elements.timelineGrid.querySelectorAll('.risk-focus')) {
+    other.tabIndex = other.closest('.risk-card').dataset.key === selectedKey ? 0 : -1;
+  }
+  focusKey = null;
+  updateEmphasis();
 });
 window.addEventListener('hashchange', render);
 window.addEventListener('resize', scheduleConnections);

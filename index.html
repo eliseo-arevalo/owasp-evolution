@@ -43,11 +43,6 @@
         </div>
         <div id="search-results" class="search-results" hidden></div>
       </div>
-      <div class="legend" aria-label="Leyenda de relaciones">
-        <span><i class="legend-line line-continues"></i>Continúa / se mueve</span>
-        <span><i class="legend-line line-renamed"></i>Se renombra</span>
-        <span><i class="legend-line line-merged"></i>Se fusiona / amplía</span>
-      </div>
     </section>
 
     <section class="explorer-shell">
@@ -58,6 +53,11 @@
               <h2 id="timeline-title"></h2>
             </div>
             <fieldset class="edition-filter" id="edition-filter"><legend>Ediciones visibles</legend><div id="edition-options"></div></fieldset>
+            <div class="legend" role="group" aria-label="Leyenda de relaciones">
+              <span><i class="legend-line line-continues"></i><span class="legend-full">Continúa / se mueve</span><span class="legend-short">Continúa</span></span>
+              <span><i class="legend-line line-renamed"></i><span class="legend-full">Se renombra</span><span class="legend-short">Renombra</span></span>
+              <span><i class="legend-line line-merged"></i><span class="legend-full">Se fusiona / amplía</span><span class="legend-short">Fusiona</span></span>
+            </div>
           </div>
           <div class="timeline-meta">
             <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
