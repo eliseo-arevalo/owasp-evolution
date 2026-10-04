@@ -28,6 +28,8 @@ const ui = {
   'Actualizado con OWASP Top 10:2025 y OWASP GenAI LLM Top 10:2026.': 'Updated with OWASP Top 10:2025 and OWASP GenAI LLM Top 10:2026.',
   'Idioma': 'Language',
   'Ediciones visibles': 'Visible editions',
+  '← Volver': '← Back',
+  'Volver a la matriz': 'Back to matrix',
   'Cerrar': 'Close',
   'Cerrar detalle': 'Close details',
   'Prevención prioritaria': 'Priority prevention',

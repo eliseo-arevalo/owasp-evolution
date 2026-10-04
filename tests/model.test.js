@@ -76,3 +76,14 @@ test('route state decodes segments and canonicalizes invalid hashes', () => {
   assert.equal(invalid.canonicalHash, formatRoute(invalid.route));
   assert.equal(invalid.changed, true);
 });
+
+ test('detail URLs round-trip for both families and preserve matrix routes', () => {
+  for (const route of [{ family: 'web', year: 2025, id: 'A01' }, { family: 'llm', year: 2026, id: 'LLM03' }]) {
+    const detail = { ...route, detail: true };
+    const hash = `${formatRoute(route)}/detalle`;
+    assert.equal(formatRoute(detail), hash);
+    assert.deepEqual(parseRoute(hash, catalog), detail);
+    assert.equal(resolveRouteState(hash, catalog).changed, false);
+    assert.deepEqual(parseRoute(formatRoute(route), catalog), route);
+  }
+});

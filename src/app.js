@@ -2,7 +2,7 @@ import { detectLanguage, readLanguagePreference, saveLanguagePreference } from '
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
 import { defaultVisibleYears, visibleEditions, visibleConnections } from './editions.js';
 import { catalog as sourceCatalog } from './data.js';
-import { resetScrollPosition, scheduleFocus, shouldRefocusWithin } from './focus.js';
+import { scheduleFocus } from './focus.js';
 import {
   searchRisks,
   getRisk,
@@ -30,12 +30,14 @@ const elements = {
   familyDescription: document.querySelector('#family-description'),
   timelineTitle: document.querySelector('#timeline-title'),
   timelineHelp: document.querySelector('#timeline-help'),
-  openInspector: document.querySelector('#open-inspector'),
+  openDetailButton: document.querySelector('#open-detail'),
   detailTriggerLabel: document.querySelector('#detail-trigger-label'),
   timelineStage: document.querySelector('#timeline-stage'),
   timelineGrid: document.querySelector('#timeline-grid'),
   connectorLayer: document.querySelector('#connector-layer'),
-  inspector: document.querySelector('#inspector'),
+  detailPage: document.querySelector('#detail-page'),
+  detailModal: document.querySelector('#detail-modal'),
+  matrixPage: document.querySelector('#matrix-page'),
   search: document.querySelector('#risk-search'),
   searchResults: document.querySelector('#search-results'),
 };
@@ -43,9 +45,10 @@ const elements = {
 let currentRoute = resolveRouteState(location.hash, catalog).route;
 let activeEdges = [];
 let drawFrame = 0;
-let inspectorOpen = false;
-let focusInspectorAfterRender = false;
-let resolveInspectorReturn = () => elements.openInspector;
+let matrixSignature = '';
+let matrixReturnHash = null;
+let wasDetail = false;
+const resolveDetailReturn = () => elements.timelineStage.querySelector('.is-selected .risk-focus');
 
 function node(tag, className, text) {
   const element = document.createElement(tag);
@@ -54,43 +57,25 @@ function node(tag, className, text) {
   return element;
 }
 
-function syncInspectorVisibility({ focus = false } = {}) {
-  elements.inspector.classList.toggle('is-open', inspectorOpen);
-  elements.inspector.setAttribute('aria-hidden', String(!inspectorOpen));
-  elements.openInspector.setAttribute('aria-expanded', String(inspectorOpen));
-  elements.inspector.inert = !inspectorOpen;
-  if (focus && inspectorOpen) {
-    resetScrollPosition(elements.inspector);
-    scheduleFocus(
-      () => elements.inspector.querySelector('.inspector-close'),
-      () => elements.inspector,
-    );
-  }
-}
-
-function setInspectorOpen(open, {
-  focus = false,
-  restoreFocus = true,
-  returnFocus,
-} = {}) {
-  inspectorOpen = open;
-  if (open && returnFocus) resolveInspectorReturn = returnFocus;
-  syncInspectorVisibility({ focus });
-  if (!open && restoreFocus) {
-    scheduleFocus(resolveInspectorReturn, () => elements.openInspector);
-  }
-}
-
-function navigate(route, {
-  openInspector = inspectorOpen,
-  returnFocus,
-} = {}) {
-  inspectorOpen = openInspector;
-  focusInspectorAfterRender = openInspector;
-  if (openInspector && returnFocus) resolveInspectorReturn = returnFocus;
+function navigate(route) {
   const nextHash = formatRoute(route);
   if (location.hash === nextHash) render();
   else location.hash = nextHash;
+}
+
+function openDetail() {
+  matrixReturnHash = formatRoute({ ...currentRoute, detail: false });
+  history.pushState({ matrixReturnHash }, '', formatRoute({ ...currentRoute, detail: true }));
+  render();
+}
+
+function returnToMatrix() {
+  if (matrixReturnHash && history.state?.matrixReturnHash === matrixReturnHash) {
+    history.back();
+  } else {
+    history.replaceState(null, '', formatRoute({ ...currentRoute, detail: false }));
+    render();
+  }
 }
 
 function renderFamilyNav() {
@@ -102,7 +87,7 @@ function renderFamilyNav() {
     button.addEventListener('click', () => {
       const editions = visibleEditions(family, yearFilters.get(family.id));
       const edition = editions.find((item) => item.year === family.defaultYear) ?? editions.at(-1);
-      navigate({ family: family.id, year: edition.year, id: edition.items[0].id }, { openInspector: false });
+      navigate({ family: family.id, year: edition.year, id: edition.items[0].id });
       elements.search.value = '';
       hideSearchResults();
     });
@@ -127,6 +112,18 @@ function renderTimeline(family, lineage) {
   elements.timelineGrid.dataset.editions = String(editions.length);
   const relatedKeys = new Set(lineage.nodes.map((item) => item.key));
   const selectedKey = `${currentRoute.year}:${currentRoute.id}`;
+  const connections = visibleConnections(family, years, lineage.edges);
+  const relationColors = new Map();
+  const relationVariable = (type) => type === 'renamed' ? '--renamed'
+    : ['merged', 'expanded', 'consolidated'].includes(type) ? '--merged' : '--continues';
+  // Prefer the relation directly touching the selection when a node has multiple edges.
+  const lineageConnections = connections.filter((edge) => edge.highlighted);
+  lineageConnections.sort((a, b) => Number(a.from === selectedKey || a.to === selectedKey)
+    - Number(b.from === selectedKey || b.to === selectedKey));
+  for (const edge of lineageConnections) {
+    relationColors.set(edge.from, relationVariable(edge.type));
+    relationColors.set(edge.to, relationVariable(edge.type));
+  }
 
   for (const edition of editions) {
     const column = node('section', 'edition-column');
@@ -148,6 +145,9 @@ function renderTimeline(family, lineage) {
       const button = node('button', 'risk-focus');
       button.type = 'button';
       card.dataset.key = risk.key;
+      if (relationColors.has(risk.key)) {
+        card.style.setProperty('--relation-color', `var(${relationColors.get(risk.key)})`);
+      }
       button.setAttribute('aria-label', `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`);
       button.title = risk.change || `${risk.id} · ${risk.name}`;
 
@@ -162,21 +162,14 @@ function renderTimeline(family, lineage) {
       button.append(rank, copy);
       button.addEventListener('click', () => navigate(
         { family: family.id, year: edition.year, id: risk.id },
-        {
-          returnFocus: () => elements.timelineStage.querySelector(`[data-key="${risk.key}"] .risk-focus`),
-        },
       ));
       card.append(button);
       if (risk.key === selectedKey) {
         button.setAttribute('aria-current', 'true');
         const detail = node('button', 'risk-detail', t('Detalle'));
         detail.type = 'button';
-        detail.setAttribute('aria-controls', 'inspector');
         detail.setAttribute('aria-haspopup', 'dialog');
-        detail.addEventListener('click', () => setInspectorOpen(true, {
-          focus: true,
-          returnFocus: () => elements.timelineStage.querySelector(`[data-key="${risk.key}"] .risk-detail`),
-        }));
+        detail.addEventListener('click', openDetail);
         card.append(detail);
       }
       list.append(card);
@@ -186,7 +179,7 @@ function renderTimeline(family, lineage) {
     elements.timelineGrid.append(column);
   }
 
-  activeEdges = visibleConnections(family, years, lineage.edges);
+  activeEdges = connections;
   scheduleConnections();
 }
 
@@ -205,7 +198,7 @@ function renderEditionFilter(family) {
       else years.delete(edition.year);
       if (!years.has(currentRoute.year)) {
         const replacement = visibleEditions(family, years).at(-1);
-        navigate({ family: family.id, year: replacement.year, id: replacement.items[0].id }, { openInspector: false });
+        navigate({ family: family.id, year: replacement.year, id: replacement.items[0].id });
       } else render();
       scheduleFocus(() => document.querySelector(`#edition-options input[value="${edition.year}"]`));
     });
@@ -215,32 +208,32 @@ function renderEditionFilter(family) {
   }
 }
 
-function renderInspector(family, risk, lineage) {
-  elements.inspector.replaceChildren();
+function renderDetail(family, risk, lineage) {
+  elements.detailPage.replaceChildren();
   const edition = getEdition(catalog, family.id, risk.year);
 
-  const top = node('div', 'inspector-top');
-  const code = node('div', 'inspector-code');
+  const top = node('div', 'detail-top');
+  const code = node('div', 'detail-code');
   code.append(node('span', '', `${risk.id} · ${risk.year}`));
-  if (edition.status === t('Vigente')) code.append(node('span', 'inspector-current', t('Vigente')));
-  const close = node('button', 'inspector-close', t('Cerrar'));
+  if (edition.status === t('Vigente')) code.append(node('span', 'detail-current', t('Vigente')));
+  const close = node('button', 'detail-back', t('← Volver'));
   close.type = 'button';
-  close.setAttribute('aria-label', t('Cerrar detalle'));
-  close.addEventListener('click', () => setInspectorOpen(false));
-  top.append(code, close);
+  close.setAttribute('aria-label', t('Volver a la matriz'));
+  close.addEventListener('click', returnToMatrix);
+  top.append(close, code);
 
-  const heading = node('h2', '', risk.name);
-  heading.id = 'inspector-title';
-  const summary = node('p', 'inspector-summary', risk.summary);
+  const heading = node('h1', '', risk.name);
+  heading.id = 'detail-title';
+  const summary = node('p', 'detail-summary', risk.summary);
 
-  const prevention = node('section', 'inspector-section');
-  prevention.append(node('h3', '', t('Prevención prioritaria')));
+  const prevention = node('section', 'detail-section');
+  prevention.append(node('h2', '', t('Prevención prioritaria')));
   const preventionList = node('ul');
   for (const item of risk.prevention) preventionList.append(node('li', '', item));
   prevention.append(preventionList);
 
-  const history = node('section', 'inspector-section');
-  history.append(node('h3', '', t('Linaje en el tiempo')));
+  const history = node('section', 'detail-section');
+  history.append(node('h2', '', t('Linaje en el tiempo')));
   const historyList = node('ol', 'lineage-list');
   for (const item of lineage.nodes) {
     const entry = node('li', 'lineage-item');
@@ -258,8 +251,8 @@ function renderInspector(family, risk, lineage) {
   }
   history.append(historyList);
 
-  const relations = node('section', 'inspector-section');
-  relations.append(node('h3', '', t('Relaciones')));
+  const relations = node('section', 'detail-section');
+  relations.append(node('h2', '', t('Relaciones')));
   const relationList = node('ul');
   const relevantEdges = family.edges.filter((edge) => edge.from === risk.key || edge.to === risk.key);
   if (relevantEdges.length) {
@@ -271,16 +264,15 @@ function renderInspector(family, risk, lineage) {
   }
   relations.append(relationList);
 
-  const linkSection = node('section', 'inspector-section');
+  const linkSection = node('section', 'detail-section');
   const source = node('a', 'source-link', t('Abrir fuente oficial ↗'));
   source.href = risk.source;
   source.target = '_blank';
   source.rel = 'noopener noreferrer';
   linkSection.append(source);
 
-  elements.inspector.append(top, heading, summary, prevention, history, relations, linkSection);
-  syncInspectorVisibility({ focus: focusInspectorAfterRender });
-  focusInspectorAfterRender = false;
+  elements.detailPage.append(top, heading, summary, prevention, history, relations, linkSection);
+
 }
 
 function scheduleConnections() {
@@ -348,7 +340,6 @@ function renderSearchResults(query) {
         yearFilters.get(result.family).add(result.year);
         navigate(
           { family: result.family, year: result.year, id: result.id },
-          { returnFocus: () => elements.search },
         );
         elements.search.value = '';
         hideSearchResults();
@@ -364,12 +355,9 @@ function hideSearchResults() {
 }
 
 function render() {
-  if (shouldRefocusWithin(elements.inspector, document.activeElement, inspectorOpen)) {
-    focusInspectorAfterRender = true;
-  }
   const routeState = resolveRouteState(location.hash, catalog);
   currentRoute = routeState.route;
-  if (routeState.changed) history.replaceState(null, '', routeState.canonicalHash);
+  if (routeState.changed) history.replaceState(history.state, '', routeState.canonicalHash);
   const family = catalog.families[currentRoute.family];
   yearFilters.get(family.id).add(currentRoute.year);
   const risk = getRisk(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
@@ -378,36 +366,62 @@ function render() {
 
   applyStaticLanguage(language);
   document.querySelector('#language-select').value = language;
+  const detail = Boolean(currentRoute.detail);
+  document.body.classList.toggle('detail-open', detail);
+  const signature = JSON.stringify([family.id, currentRoute.year, currentRoute.id, language, [...yearFilters.get(family.id)]]);
   renderFamilyNav();
-  renderEditionFilter(family);
-  elements.familyDescription.textContent = family.description;
-  elements.timelineTitle.textContent = family.label;
-  elements.timelineHelp.textContent = `${visibleEditions(family, yearFilters.get(family.id)).length} ${language === 'es' ? 'ediciones' : 'editions'} · ${lineage.nodes.length} ${language === 'es' ? 'nodos en el linaje' : 'lineage nodes'}`;
-  elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
-  renderTimeline(family, lineage);
-  renderInspector(family, selected, lineage);
+  if (signature !== matrixSignature) {
+    matrixSignature = signature;
+    renderEditionFilter(family);
+    elements.familyDescription.textContent = family.description;
+    elements.timelineTitle.textContent = family.label;
+    elements.timelineHelp.textContent = `${visibleEditions(family, yearFilters.get(family.id)).length} ${language === 'es' ? 'ediciones' : 'editions'} · ${lineage.nodes.length} ${language === 'es' ? 'nodos en el linaje' : 'lineage nodes'}`;
+    elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
+    renderTimeline(family, lineage);
+  }
+  if (detail) {
+    renderDetail(family, selected, lineage);
+    if (!wasDetail) {
+      elements.detailModal.showModal();
+      elements.detailModal.scrollTop = 0;
+      scheduleFocus(() => elements.detailPage.querySelector('.detail-back'));
+    }
+  } else if (wasDetail) {
+    elements.detailModal.close();
+    scheduleFocus(resolveDetailReturn);
+    scheduleConnections();
+  }
+  wasDetail = detail;
   document.title = `${selected.id} ${selected.name} · OWASP Evolution`;
 }
 
+elements.detailModal.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  returnToMatrix();
+});
+elements.detailModal.addEventListener('click', (event) => {
+  const bounds = elements.detailModal.getBoundingClientRect();
+  if (event.target === elements.detailModal &&
+      (event.clientX < bounds.left || event.clientX > bounds.right ||
+       event.clientY < bounds.top || event.clientY > bounds.bottom)) returnToMatrix();
+});
+
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));
-elements.brand.addEventListener('click', () => setInspectorOpen(false, { restoreFocus: false }));
-elements.openInspector.addEventListener('click', () => setInspectorOpen(!inspectorOpen, {
-  focus: true,
-  returnFocus: () => elements.openInspector,
-}));
+elements.openDetailButton.addEventListener('click', () => openDetail());
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.search-wrap')) hideSearchResults();
 });
 document.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName;
-  if (event.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+  if (event.key === '/' && !currentRoute.detail && tag !== 'INPUT' && tag !== 'TEXTAREA') {
     event.preventDefault();
     elements.search.focus();
   }
   if (event.key === 'Escape') {
-    if (inspectorOpen) {
-      setInspectorOpen(false);
+    if (currentRoute.detail) {
+      event.preventDefault();
+      returnToMatrix();
       return;
     }
     elements.search.value = '';

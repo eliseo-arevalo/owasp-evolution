@@ -7,7 +7,7 @@
   <meta property="og:title" content="OWASP Evolution">
   <meta property="og:description" content="Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#101116">
   <title>OWASP Evolution</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -26,6 +26,7 @@
   </header>
 
   <main>
+    <div id="matrix-page">
     <section class="intro" aria-describedby="family-description">
       <div class="intro-copy">
         <p id="family-description"></p>
@@ -60,7 +61,7 @@
           </div>
           <div class="timeline-meta">
             <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
-            <button class="detail-trigger" id="open-inspector" aria-controls="inspector" aria-expanded="false" type="button">
+            <button class="detail-trigger" id="open-detail" type="button" aria-haspopup="dialog">
               <span id="detail-trigger-label"></span>
               <span>Ver detalle →</span>
             </button>
@@ -74,7 +75,7 @@
         </div>
       </div>
 
-      <aside class="inspector" id="inspector" role="dialog" aria-modal="false" aria-labelledby="inspector-title" aria-live="polite" aria-hidden="true" tabindex="-1"></aside>
+
     </section>
 
     <section class="method" aria-labelledby="method-title">
@@ -85,6 +86,10 @@
         <p><strong>Detalle</strong><span>Los nombres se conservan en inglés; las explicaciones y medidas están resumidas en el idioma seleccionado.</span></p>
       </div>
     </section>
+    </div>
+    <dialog class="detail-modal" id="detail-modal" aria-labelledby="detail-title">
+      <article class="detail-page" id="detail-page"></article>
+    </dialog>
   </main>
 
   <footer>

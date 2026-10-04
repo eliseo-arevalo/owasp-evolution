@@ -104,14 +104,14 @@ export function parseRoute(hash, input) {
     return defaultRoute(input);
   }
 
-  const [familyId, yearValue, id] = segments;
+  const [familyId, yearValue, id, view] = segments;
   const year = Number(yearValue);
-  if (getRisk(input, familyId, year, id)) return { family: familyId, year, id };
+  if (getRisk(input, familyId, year, id)) return { family: familyId, year, id, ...(view === 'detalle' ? { detail: true } : {}) };
   return defaultRoute(input);
 }
 
-export function formatRoute({ family, year, id }) {
-  return `#/${encodeURIComponent(family)}/${encodeURIComponent(year)}/${encodeURIComponent(id)}`;
+export function formatRoute({ family, year, id, detail }) {
+  return `#/${encodeURIComponent(family)}/${encodeURIComponent(year)}/${encodeURIComponent(id)}${detail ? '/detalle' : ''}`;
 }
 
 export function resolveRouteState(hash, input) {

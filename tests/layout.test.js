@@ -24,14 +24,16 @@ test('desktop timeline is a compact fluid matrix without horizontal scrolling', 
   assert.match(rule(css, '.risk-card'), /height:\s*var\(--risk-row-height\)/);
 });
 
-test('category details use a closeable overlay drawer instead of consuming table width', async () => {
-  const [css, html] = await Promise.all([
-    readFile(cssUrl, 'utf8'),
-    readFile(htmlUrl, 'utf8'),
-  ]);
-
-  assert.match(rule(css, '.inspector'), /position:\s*fixed/);
-  assert.match(css, /\.inspector\.is-open\s*\{/);
-  assert.match(html, /<button[^>]*id="open-inspector"[^>]*aria-controls="inspector"[^>]*aria-expanded="false"/);
-  assert.match(html, /<aside[^>]*id="inspector"[^>]*role="dialog"[^>]*aria-labelledby="inspector-title"/);
+test('category details are a centered reading modal over the visible matrix', async () => {
+  const [css, html] = await Promise.all([readFile(cssUrl, 'utf8'), readFile(htmlUrl, 'utf8')]);
+  assert.match(rule(css, '.detail-modal'), /max-width:\s*760px/);
+  assert.match(rule(css, '.detail-modal'), /margin:\s*auto/);
+  assert.match(rule(css, '.detail-modal'), /max-height:\s*calc/);
+  assert.match(rule(css, '.detail-modal'), /overflow-y:\s*auto/);
+  assert.match(rule(css, '.detail-modal::backdrop'), /background:\s*rgb\(0 0 0 \/ 80%\)/);
+  assert.match(rule(css, 'body.detail-open'), /overflow:\s*hidden/);
+  assert.match(html, /<div id="matrix-page">/);
+  assert.match(html, /<dialog[^>]*id="detail-modal"[^>]*aria-labelledby="detail-title"/);
+  assert.match(html, /id="open-detail"[^>]*aria-haspopup="dialog"/);
+  assert.doesNotMatch(html, /<aside/);
 });
