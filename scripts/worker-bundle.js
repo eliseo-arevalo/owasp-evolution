@@ -2,12 +2,18 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { detectLanguage, spanishCountries } from '../src/locale.js';
+
 const PUBLIC_ASSETS = [
   ['index.html', 'text/html; charset=utf-8'],
   ['styles.css', 'text/css; charset=utf-8'],
   ['src/app.js', 'text/javascript; charset=utf-8'],
   ['src/data.js', 'text/javascript; charset=utf-8'],
   ['src/focus.js', 'text/javascript; charset=utf-8'],
+  ['src/locale.js', 'text/javascript; charset=utf-8'],
+  ['src/i18n.js', 'text/javascript; charset=utf-8'],
+  ['src/editions.js', 'text/javascript; charset=utf-8'],
+  ['src/translations-en.js', 'text/javascript; charset=utf-8'],
   ['src/model.js', 'text/javascript; charset=utf-8'],
   ['assets/fonts/Geist-Regular.ttf', 'font/ttf'],
   ['assets/fonts/Geist-Medium.ttf', 'font/ttf'],
@@ -33,7 +39,9 @@ export async function buildWorkerBundle(root) {
     };
   }
 
-  return `const ASSETS = ${JSON.stringify(assets)};
+  return `const spanishCountries = new Set(${JSON.stringify([...spanishCountries])});
+const detectLanguage = ${detectLanguage.toString()};
+const ASSETS = ${JSON.stringify(assets)};
 
 const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
@@ -49,7 +57,15 @@ function responseFor(request, asset, isHtml = false) {
   });
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
   const bytes = Uint8Array.from(atob(asset.body), character => character.charCodeAt(0));
-  return new Response(request.method === 'HEAD' ? null : bytes, { status: 200, headers });
+  let body = bytes;
+  if (isHtml) {
+    const language = detectLanguage({ country: request.headers.get('CF-IPCountry'), acceptLanguage: request.headers.get('Accept-Language') || '' });
+    const html = new TextDecoder().decode(bytes).replace('<html lang="es">', '<html lang="' + language + '">').replace('<head>', '<head><meta name="owasp-language" content="' + language + '">');
+    body = new TextEncoder().encode(html);
+    headers.set('Vary', 'CF-IPCountry, Accept-Language');
+    headers.set('Content-Language', language);
+  }
+  return new Response(request.method === 'HEAD' ? null : body, { status: 200, headers });
 }
 
 export default {

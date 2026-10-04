@@ -17,15 +17,13 @@
       <span>OWASP Evolution</span>
     </a>
     <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
-    <span class="unofficial">Proyecto educativo no oficial</span>
+    <div class="header-meta">
+      <label class="language-control"><span class="sr-only">Idioma</span><select id="language-select"><option value="es">ES</option><option value="en">EN</option></select></label>
+    </div>
   </header>
 
   <main>
-    <section class="intro" aria-labelledby="page-title">
-      <div>
-        <p class="eyebrow">OWASP EVOLUTION / 2013—2026</p>
-        <h1 id="page-title">El Top 10, edición por edición.</h1>
-      </div>
+    <section class="intro" aria-describedby="family-description">
       <div class="intro-copy">
         <p id="family-description"></p>
       </div>
@@ -51,9 +49,11 @@
     <section class="explorer-shell">
       <div class="timeline-panel" id="timeline">
         <div class="timeline-heading">
-          <div>
-            <p class="eyebrow">EVOLUCIÓN</p>
-            <h2 id="timeline-title"></h2>
+          <div class="timeline-summary">
+            <div>
+              <h2 id="timeline-title"></h2>
+            </div>
+            <fieldset class="edition-filter" id="edition-filter"><legend>Ediciones visibles</legend><div id="edition-options"></div></fieldset>
           </div>
           <div class="timeline-meta">
             <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
@@ -80,12 +80,13 @@
       <div class="method-grid">
         <p><strong>Posición</strong><span>La clasificación refleja prioridad relativa en una edición, no una puntuación universal.</span></p>
         <p><strong>Linaje</strong><span>Una categoría puede renombrarse, ampliar su alcance, absorber otras o dividirse.</span></p>
-        <p><strong>Detalle</strong><span>Los nombres se conservan en inglés; las explicaciones y medidas están resumidas en español.</span></p>
+        <p><strong>Detalle</strong><span>Los nombres se conservan en inglés; las explicaciones y medidas están resumidas en el idioma seleccionado.</span></p>
       </div>
     </section>
   </main>
 
   <footer>
+    <p class="unofficial">Proyecto educativo no oficial</p>
     <p>Fuentes oficiales de OWASP enlazadas en cada categoría.</p>
     <p>Actualizado con OWASP Top 10:2025 y OWASP GenAI LLM Top 10:2026.</p>
   </footer>

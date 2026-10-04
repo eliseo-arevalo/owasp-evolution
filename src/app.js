@@ -1,7 +1,9 @@
-import { catalog } from './data.js';
+import { detectLanguage, readLanguagePreference, saveLanguagePreference } from './locale.js';
+import { localizeCatalog, translate, staticTranslator } from './i18n.js';
+import { defaultVisibleYears, visibleEditions, visibleConnections } from './editions.js';
+import { catalog as sourceCatalog } from './data.js';
 import { resetScrollPosition, scheduleFocus, shouldRefocusWithin } from './focus.js';
 import {
-  flattenCatalog,
   searchRisks,
   getRisk,
   getEdition,
@@ -10,6 +12,16 @@ import {
   resolveRouteState,
   relationshipLabel,
 } from './model.js';
+
+const applyStaticLanguage = staticTranslator(document);
+const serverLanguage = document.querySelector('meta[name="owasp-language"]')?.content;
+let language = detectLanguage({
+  savedLanguage: readLanguagePreference(window),
+  browserLanguage: ['en', 'es'].includes(serverLanguage) ? serverLanguage : navigator.language,
+});
+let catalog = localizeCatalog(sourceCatalog, language);
+const t = (text) => translate(text, language);
+const yearFilters = new Map(Object.values(catalog.families).map((family) => [family.id, new Set(defaultVisibleYears(family))]));
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const elements = {
@@ -88,7 +100,8 @@ function renderFamilyNav() {
     button.type = 'button';
     if (family.id === currentRoute.family) button.setAttribute('aria-current', 'page');
     button.addEventListener('click', () => {
-      const edition = family.editions.find((item) => item.year === family.defaultYear) ?? family.editions.at(-1);
+      const editions = visibleEditions(family, yearFilters.get(family.id));
+      const edition = editions.find((item) => item.year === family.defaultYear) ?? editions.at(-1);
       navigate({ family: family.id, year: edition.year, id: edition.items[0].id }, { openInspector: false });
       elements.search.value = '';
       hideSearchResults();
@@ -107,20 +120,22 @@ function riskWithContext(family, edition, risk) {
 }
 
 function renderTimeline(family, lineage) {
+  const years = yearFilters.get(family.id);
+  const editions = visibleEditions(family, years);
   elements.timelineGrid.replaceChildren();
-  elements.timelineGrid.style.setProperty('--edition-count', family.editions.length);
-  elements.timelineGrid.dataset.editions = String(family.editions.length);
+  elements.timelineGrid.style.setProperty('--edition-count', editions.length);
+  elements.timelineGrid.dataset.editions = String(editions.length);
   const relatedKeys = new Set(lineage.nodes.map((item) => item.key));
   const selectedKey = `${currentRoute.year}:${currentRoute.id}`;
 
-  for (const edition of family.editions) {
+  for (const edition of editions) {
     const column = node('section', 'edition-column');
     column.setAttribute('aria-labelledby', `edition-${family.id}-${edition.year}`);
 
     const header = node('header', 'edition-header');
     const meta = node('div', 'edition-meta');
-    meta.append(node('span', '', `${edition.items.length} categorías`));
-    const status = node('span', `edition-status${edition.status === 'Vigente' ? ' current' : ''}`, edition.status);
+    meta.append(node('span', '', `${edition.items.length} ${language === 'es' ? 'categorías' : 'categories'}`));
+    const status = node('span', `edition-status${edition.status === t('Vigente') ? ' current' : ''}`, edition.status);
     meta.append(status);
     const year = node('h3', 'edition-year', String(edition.year));
     year.id = `edition-${family.id}-${edition.year}`;
@@ -132,7 +147,7 @@ function renderTimeline(family, lineage) {
       const button = node('button', 'risk-card');
       button.type = 'button';
       button.dataset.key = risk.key;
-      button.setAttribute('aria-label', `${risk.id}: ${risk.name}, edición ${risk.year}`);
+      button.setAttribute('aria-label', `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`);
       button.setAttribute('aria-controls', 'inspector');
       button.setAttribute('aria-haspopup', 'dialog');
       button.title = risk.change || `${risk.id} · ${risk.name}`;
@@ -160,8 +175,33 @@ function renderTimeline(family, lineage) {
     elements.timelineGrid.append(column);
   }
 
-  activeEdges = lineage.edges;
+  activeEdges = visibleConnections(family, years, lineage.edges);
   scheduleConnections();
+}
+
+function renderEditionFilter(family) {
+  const options = document.querySelector('#edition-options');
+  options.replaceChildren();
+  const years = yearFilters.get(family.id);
+  for (const edition of family.editions) {
+    const label = node('label');
+    const input = node('input');
+    input.type = 'checkbox';
+    input.checked = years.has(edition.year);
+    input.disabled = input.checked && years.size === 1;
+    input.addEventListener('change', () => {
+      if (input.checked) years.add(edition.year);
+      else years.delete(edition.year);
+      if (!years.has(currentRoute.year)) {
+        const replacement = visibleEditions(family, years).at(-1);
+        navigate({ family: family.id, year: replacement.year, id: replacement.items[0].id }, { openInspector: false });
+      } else render();
+      scheduleFocus(() => document.querySelector(`#edition-options input[value="${edition.year}"]`));
+    });
+    input.value = edition.year;
+    label.append(input, node('span', '', String(edition.year)));
+    options.append(label);
+  }
 }
 
 function renderInspector(family, risk, lineage) {
@@ -171,10 +211,10 @@ function renderInspector(family, risk, lineage) {
   const top = node('div', 'inspector-top');
   const code = node('div', 'inspector-code');
   code.append(node('span', '', `${risk.id} · ${risk.year}`));
-  if (edition.status === 'Vigente') code.append(node('span', 'inspector-current', 'Vigente'));
-  const close = node('button', 'inspector-close', 'Cerrar');
+  if (edition.status === t('Vigente')) code.append(node('span', 'inspector-current', t('Vigente')));
+  const close = node('button', 'inspector-close', t('Cerrar'));
   close.type = 'button';
-  close.setAttribute('aria-label', 'Cerrar detalle');
+  close.setAttribute('aria-label', t('Cerrar detalle'));
   close.addEventListener('click', () => setInspectorOpen(false));
   top.append(code, close);
 
@@ -183,45 +223,45 @@ function renderInspector(family, risk, lineage) {
   const summary = node('p', 'inspector-summary', risk.summary);
 
   const prevention = node('section', 'inspector-section');
-  prevention.append(node('h3', '', 'Prevención prioritaria'));
+  prevention.append(node('h3', '', t('Prevención prioritaria')));
   const preventionList = node('ul');
   for (const item of risk.prevention) preventionList.append(node('li', '', item));
   prevention.append(preventionList);
 
   const history = node('section', 'inspector-section');
-  history.append(node('h3', '', 'Linaje en el tiempo'));
+  history.append(node('h3', '', t('Linaje en el tiempo')));
   const historyList = node('ol', 'lineage-list');
   for (const item of lineage.nodes) {
     const entry = node('li', 'lineage-item');
     const year = node('span', 'lineage-year', String(item.year));
     const copy = node('span');
     copy.append(node('strong', '', `${item.id} · ${item.name}`));
-    copy.append(node('span', '', item.change || 'Sin cambio documentado'));
+    copy.append(node('span', '', item.change || t('Sin cambio documentado')));
     entry.append(year, copy);
     historyList.append(entry);
   }
   if (lineage.nodes.length === 1) {
     const entry = node('li', 'lineage-item');
-    entry.append(node('span', 'lineage-year', String(risk.year)), node('span', '', risk.change || 'Categoría sin predecesor o sucesor directo en las ediciones incluidas.'));
+    entry.append(node('span', 'lineage-year', String(risk.year)), node('span', '', risk.change || t('Categoría sin predecesor o sucesor directo en las ediciones incluidas.')));
     historyList.replaceChildren(entry);
   }
   history.append(historyList);
 
   const relations = node('section', 'inspector-section');
-  relations.append(node('h3', '', 'Relaciones'));
+  relations.append(node('h3', '', t('Relaciones')));
   const relationList = node('ul');
   const relevantEdges = family.edges.filter((edge) => edge.from === risk.key || edge.to === risk.key);
   if (relevantEdges.length) {
     for (const edge of relevantEdges) {
-      relationList.append(node('li', '', `${relationshipLabel(edge.type)}: ${edge.note}`));
+      relationList.append(node('li', '', `${t(relationshipLabel(edge.type))}: ${edge.note}`));
     }
   } else {
-    relationList.append(node('li', '', risk.change || 'No hay una relación directa documentada en las ediciones incluidas.'));
+    relationList.append(node('li', '', risk.change || t('No hay una relación directa documentada en las ediciones incluidas.')));
   }
   relations.append(relationList);
 
   const linkSection = node('section', 'inspector-section');
-  const source = node('a', 'source-link', 'Abrir fuente oficial ↗');
+  const source = node('a', 'source-link', t('Abrir fuente oficial ↗'));
   source.href = risk.source;
   source.target = '_blank';
   source.rel = 'noopener noreferrer';
@@ -265,6 +305,9 @@ function drawConnections() {
     const path = document.createElementNS(SVG_NS, 'path');
     path.setAttribute('d', `M ${startX} ${startY} C ${startX + distance * .46} ${startY}, ${endX - distance * .46} ${endY}, ${endX} ${endY}`);
     path.classList.add(edge.type);
+    if (edge.highlighted) path.classList.add('is-highlighted');
+    path.dataset.from = edge.from;
+    path.dataset.to = edge.to;
     svg.append(path);
   }
 }
@@ -280,7 +323,7 @@ function renderSearchResults(query) {
   }
 
   if (!results.length) {
-    elements.searchResults.append(node('p', 'search-empty', 'No se encontraron categorías.'));
+    elements.searchResults.append(node('p', 'search-empty', t('No se encontraron categorías.')));
   } else {
     for (const result of results) {
       const button = node('button', 'search-result');
@@ -293,6 +336,7 @@ function renderSearchResults(query) {
         node('span', 'search-result-year', String(result.year)),
       );
       button.addEventListener('click', () => {
+        yearFilters.get(result.family).add(result.year);
         navigate(
           { family: result.family, year: result.year, id: result.id },
           { openInspector: true, returnFocus: () => elements.search },
@@ -318,14 +362,18 @@ function render() {
   currentRoute = routeState.route;
   if (routeState.changed) history.replaceState(null, '', routeState.canonicalHash);
   const family = catalog.families[currentRoute.family];
+  yearFilters.get(family.id).add(currentRoute.year);
   const risk = getRisk(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
   const selected = { ...risk, family: family.id, year: currentRoute.year, key: `${currentRoute.year}:${currentRoute.id}` };
   const lineage = getLineage(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
 
+  applyStaticLanguage(language);
+  document.querySelector('#language-select').value = language;
   renderFamilyNav();
+  renderEditionFilter(family);
   elements.familyDescription.textContent = family.description;
   elements.timelineTitle.textContent = family.label;
-  elements.timelineHelp.textContent = `${family.editions.length} ediciones · ${lineage.nodes.length} nodo${lineage.nodes.length === 1 ? '' : 's'} en el linaje`;
+  elements.timelineHelp.textContent = `${visibleEditions(family, yearFilters.get(family.id)).length} ${language === 'es' ? 'ediciones' : 'editions'} · ${lineage.nodes.length} ${language === 'es' ? 'nodos en el linaje' : 'lineage nodes'}`;
   elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
   renderTimeline(family, lineage);
   renderInspector(family, selected, lineage);
@@ -363,3 +411,11 @@ window.addEventListener('resize', scheduleConnections);
 new ResizeObserver(scheduleConnections).observe(elements.timelineStage);
 
 render();
+
+document.querySelector('#language-select').addEventListener('change', (event) => {
+  language = event.target.value;
+  saveLanguagePreference(window, language);
+  catalog = localizeCatalog(sourceCatalog, language);
+  render();
+  renderSearchResults(elements.search.value);
+});

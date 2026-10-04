@@ -181,7 +181,7 @@ export const catalog = {
       description: 'Cómo evolucionaron las categorías de riesgo de aplicaciones web desde 2013 hasta la edición vigente de 2025.',
       defaultYear: 2025,
       editions: [
-        { year: 2013, label: 'OWASP Top 10 2013', status: 'Histórica', items: web2013 },
+        { year: 2013, hiddenByDefault: true, label: 'OWASP Top 10 2013', status: 'Histórica', items: web2013 },
         { year: 2017, label: 'OWASP Top 10 2017', status: 'Histórica', items: web2017 },
         { year: 2021, label: 'OWASP Top 10 2021', status: 'Anterior', items: web2021 },
         { year: 2025, label: 'OWASP Top 10 2025', status: 'Vigente', items: web2025 },
