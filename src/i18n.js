@@ -18,7 +18,6 @@ const ui = {
   'Ver detalle →': 'View details →',
   'Matriz de evolución de categorías': 'Category evolution matrix',
   'CÓMO LEER EL PROYECTO': 'HOW TO READ THE PROJECT',
-  'Las listas cambian porque cambia el riesgo.': 'The lists change because risk changes.',
   'Posición': 'Rank',
   'La clasificación refleja prioridad relativa en una edición, no una puntuación universal.': 'Ranking reflects relative priority within an edition, rather than a universal score.',
   'Linaje': 'Lineage',
