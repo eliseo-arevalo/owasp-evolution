@@ -144,17 +144,16 @@ function renderTimeline(family, lineage) {
     const list = node('div', 'risk-list');
     for (const rawRisk of edition.items) {
       const risk = riskWithContext(family, edition, rawRisk);
-      const button = node('button', 'risk-card');
+      const card = node('div', 'risk-card');
+      const button = node('button', 'risk-focus');
       button.type = 'button';
-      button.dataset.key = risk.key;
+      card.dataset.key = risk.key;
       button.setAttribute('aria-label', `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`);
-      button.setAttribute('aria-controls', 'inspector');
-      button.setAttribute('aria-haspopup', 'dialog');
       button.title = risk.change || `${risk.id} · ${risk.name}`;
 
-      if (risk.key === selectedKey) button.classList.add('is-selected');
-      else if (relatedKeys.has(risk.key)) button.classList.add('is-related');
-      else if (lineage.nodes.length > 1) button.classList.add('is-dimmed');
+      if (risk.key === selectedKey) card.classList.add('is-selected');
+      else if (relatedKeys.has(risk.key)) card.classList.add('is-related');
+      else if (lineage.nodes.length > 1) card.classList.add('is-dimmed');
 
       const rank = node('span', 'risk-rank', String(risk.rank).padStart(2, '0'));
       const copy = node('span', 'risk-copy');
@@ -164,11 +163,23 @@ function renderTimeline(family, lineage) {
       button.addEventListener('click', () => navigate(
         { family: family.id, year: edition.year, id: risk.id },
         {
-          openInspector: true,
-          returnFocus: () => elements.timelineStage.querySelector(`[data-key="${risk.key}"]`),
+          returnFocus: () => elements.timelineStage.querySelector(`[data-key="${risk.key}"] .risk-focus`),
         },
       ));
-      list.append(button);
+      card.append(button);
+      if (risk.key === selectedKey) {
+        button.setAttribute('aria-current', 'true');
+        const detail = node('button', 'risk-detail', t('Detalle'));
+        detail.type = 'button';
+        detail.setAttribute('aria-controls', 'inspector');
+        detail.setAttribute('aria-haspopup', 'dialog');
+        detail.addEventListener('click', () => setInspectorOpen(true, {
+          focus: true,
+          returnFocus: () => elements.timelineStage.querySelector(`[data-key="${risk.key}"] .risk-detail`),
+        }));
+        card.append(detail);
+      }
+      list.append(card);
     }
 
     column.append(header, list);
@@ -328,8 +339,6 @@ function renderSearchResults(query) {
     for (const result of results) {
       const button = node('button', 'search-result');
       button.type = 'button';
-      button.setAttribute('aria-controls', 'inspector');
-      button.setAttribute('aria-haspopup', 'dialog');
       button.append(
         node('span', 'search-result-id', result.id),
         node('span', 'search-result-name', result.name),
@@ -339,7 +348,7 @@ function renderSearchResults(query) {
         yearFilters.get(result.family).add(result.year);
         navigate(
           { family: result.family, year: result.year, id: result.id },
-          { openInspector: true, returnFocus: () => elements.search },
+          { returnFocus: () => elements.search },
         );
         elements.search.value = '';
         hideSearchResults();
@@ -383,7 +392,7 @@ function render() {
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));
 elements.brand.addEventListener('click', () => setInspectorOpen(false, { restoreFocus: false }));
-elements.openInspector.addEventListener('click', () => setInspectorOpen(true, {
+elements.openInspector.addEventListener('click', () => setInspectorOpen(!inspectorOpen, {
   focus: true,
   returnFocus: () => elements.openInspector,
 }));

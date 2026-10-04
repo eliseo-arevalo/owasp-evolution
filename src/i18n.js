@@ -22,7 +22,7 @@ const ui = {
   'La clasificación refleja prioridad relativa en una edición, no una puntuación universal.': 'Ranking reflects relative priority within an edition, rather than a universal score.',
   'Linaje': 'Lineage',
   'Una categoría puede renombrarse, ampliar su alcance, absorber otras o dividirse.': 'A category can be renamed, expand its scope, absorb others or split.',
-  'Detalle': 'Details',
+  'Detalle': 'Detail',
   'Los nombres se conservan en inglés; las explicaciones y medidas están resumidas en el idioma seleccionado.': 'Official names are kept in English; explanations and measures are summarized in the selected language.',
   'Fuentes oficiales de OWASP enlazadas en cada categoría.': 'Official OWASP sources are linked in every category.',
   'Actualizado con OWASP Top 10:2025 y OWASP GenAI LLM Top 10:2026.': 'Updated with OWASP Top 10:2025 and OWASP GenAI LLM Top 10:2026.',
