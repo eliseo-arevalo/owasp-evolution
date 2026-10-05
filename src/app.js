@@ -15,6 +15,7 @@ import {
 } from './editions.js';
 import { catalog as sourceCatalog } from './data.js';
 import { scheduleFocus } from './focus.js';
+import { MOTION, EASE, easeOut, prefersReducedMotion, drawPlan, settleDelays, layoutDeltas } from './motion.js';
 import {
   searchRisks,
   getRisk,
@@ -65,6 +66,18 @@ let hoverKey = null;
 let focusKey = null;
 let matrixReturnHash = null;
 let wasDetail = false;
+let pendingReveal = false;
+let settling = [];
+let layoutFrame = 0;
+let layoutEasing = false;
+let modalExit = 0;
+let maskCount = 0;
+const reveals = new Map();
+const connectorDefs = document.createElementNS(SVG_NS, 'defs');
+elements.connectorLayer.prepend(connectorDefs);
+const connectorPaths = () => elements.connectorLayer.querySelectorAll(':scope > path');
+const reducedMotion = () => prefersReducedMotion(window);
+const emphasisKey = () => hoverKey ?? focusKey ?? selectedKey;
 const resolveDetailReturn = () => elements.timelineStage.querySelector('.is-selected .risk-focus');
 
 function node(tag, className, text) {
@@ -144,10 +157,15 @@ function riskCues(cue) {
   return cues.childElementCount ? cues : null;
 }
 
-function renderTimeline(family) {
+function renderTimeline(family, ease = false) {
   const years = yearFilters.get(family.id);
   const editions = visibleEditions(family, years);
   const cues = rowCues(family, years);
+  const before = ease && !reducedMotion() ? columnBoxes() : null;
+  cancelAnimationFrame(layoutFrame);
+  layoutEasing = false;
+  stopReveal();
+  stopSettle();
   elements.timelineGrid.replaceChildren();
   elements.timelineGrid.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.dataset.editions = String(editions.length);
@@ -156,6 +174,7 @@ function renderTimeline(family) {
 
   for (const edition of editions) {
     const column = node('section', 'edition-column');
+    column.dataset.year = String(edition.year);
     column.setAttribute('aria-labelledby', `edition-${family.id}-${edition.year}`);
 
     const header = node('header', 'edition-header');
@@ -195,11 +214,48 @@ function renderTimeline(family) {
   }
 
   activeEdges = visibleConnections(family, years);
-  scheduleConnections();
+  if (before) easeColumns(before);
+  else scheduleConnections();
+}
+
+function columnBoxes() {
+  const stage = elements.timelineStage.getBoundingClientRect();
+  return new Map([...elements.timelineGrid.children].map((column) => {
+    const box = column.getBoundingClientRect();
+    return [Number(column.dataset.year), { x: box.left - stage.left, y: box.top - stage.top }];
+  }));
+}
+
+// Columns kept across a year change glide from their old slot while connectors are redrawn
+// from the same transformed boxes each frame, so lines and columns never drift apart.
+// Measuring waits for the first frame (still before paint) so selection classes land first
+// and rebuilt rows do not replay their selection motion.
+function easeColumns(before) {
+  const columns = [...elements.timelineGrid.children];
+  layoutEasing = true;
+  layoutFrame = requestAnimationFrame((start) => {
+    const deltas = layoutDeltas(before, columnBoxes());
+    for (const column of columns) {
+      if (!before.has(Number(column.dataset.year))) column.animate([{ opacity: 0 }], { duration: MOTION.layout, easing: EASE });
+    }
+    const frame = (now) => {
+      const t = Math.min(1, (now - start) / MOTION.layout);
+      const remaining = 1 - easeOut(t);
+      for (const column of columns) {
+        const delta = deltas.get(Number(column.dataset.year));
+        column.style.transform = delta && remaining ? `translate(${delta.x * remaining}px, ${delta.y * remaining}px)` : '';
+      }
+      drawConnections();
+      layoutEasing = t < 1;
+      layoutFrame = layoutEasing ? requestAnimationFrame(frame) : 0;
+    };
+    frame(start);
+  });
 }
 
 // Selection only moves classes and the Detail button, so rows and connectors can transition.
-function applySelection(key) {
+function applySelection(key, { motion = true } = {}) {
+  const committed = motion && key !== selectedKey;
   selectedKey = key;
   for (const card of elements.timelineGrid.querySelectorAll('.risk-card')) {
     const selected = card.dataset.key === key;
@@ -220,15 +276,21 @@ function applySelection(key) {
     wrap.append(detail);
     card.append(wrap);
   }
-  updateEmphasis();
+  updateEmphasis('commit');
+  if (committed) {
+    settleLineage();
+    pendingReveal = true;
+    scheduleConnections();
+  }
 }
 
-function updateEmphasis() {
-  applyEmphasis(hoverKey ?? focusKey ?? selectedKey);
+// Previews fade quickly and never draw; only a committed selection replays the draw.
+function updateEmphasis(mode = 'preview') {
+  applyEmphasis(emphasisKey(), mode);
 }
 
 // Emphasize one row's lineage: the selection, or a hovered or focused row being previewed.
-function applyEmphasis(key) {
+function applyEmphasis(key, mode) {
   const family = catalog.families[currentRoute.family];
   const years = yearFilters.get(family.id);
   const lineage = getLineage(catalog, family.id, yearOf(key), idOf(key));
@@ -238,6 +300,8 @@ function applyEmphasis(key) {
   const linked = related.size > 0;
   litEdges = new Set(connections.filter((edge) => edge.highlighted).map(edgeKey));
 
+  if (key !== selectedKey) stopReveal();
+  elements.timelineStage.classList.toggle('is-previewing', mode === 'preview');
   elements.timelineStage.classList.toggle('has-lineage', linked);
   for (const card of elements.timelineGrid.querySelectorAll('.risk-card')) {
     const cardKey = card.dataset.key;
@@ -247,8 +311,68 @@ function applyEmphasis(key) {
     if (kinds.has(cardKey)) card.style.setProperty('--relation-color', `var(--${kinds.get(cardKey)})`);
     else card.style.removeProperty('--relation-color');
   }
-  for (const path of elements.connectorLayer.children) {
+  for (const path of connectorPaths()) {
     path.classList.toggle('is-highlighted', litEdges.has(path.dataset.edge));
+  }
+}
+
+// Lineage rows settle outward from the selection: a short fade and a 3px rise, 40ms apart.
+function settleLineage() {
+  stopSettle();
+  if (reducedMotion() || emphasisKey() !== selectedKey) return;
+  const rows = [...elements.timelineGrid.querySelectorAll('.risk-card.is-anchor, .risk-card.is-related')];
+  const delays = settleDelays(rows.map((row) => row.dataset.key), selectedKey, yearFilters.get(currentRoute.family));
+  settling = rows.map((row) => row.querySelector('.risk-focus').animate(
+    [{ opacity: .4, transform: `translateY(${MOTION.settleShift}px)` }, { opacity: 1, transform: 'none' }],
+    { duration: MOTION.settle, delay: delays.get(row.dataset.key), easing: EASE, fill: 'backwards' },
+  ));
+}
+
+function stopSettle() {
+  for (const animation of settling) animation.cancel();
+  settling = [];
+}
+
+// A committed lineage draws outward from the selected year; unrelated connectors only fade.
+// Dashed strokes keep their pattern because the draw runs on a solid mask, not the stroke.
+function revealLineage() {
+  stopReveal();
+  if (reducedMotion() || layoutEasing || emphasisKey() !== selectedKey) return;
+  const lit = activeEdges.filter((edge) => litEdges.has(edgeKey(edge)));
+  const plan = drawPlan(lit, yearFilters.get(currentRoute.family), yearOf(selectedKey));
+  for (const path of connectorPaths()) {
+    const key = path.dataset.edge;
+    const step = plan.get(key);
+    if (!step) continue;
+    const mask = document.createElementNS(SVG_NS, 'mask');
+    const stroke = document.createElementNS(SVG_NS, 'path');
+    mask.id = `connector-draw-${++maskCount}`;
+    mask.setAttribute('maskUnits', 'userSpaceOnUse');
+    for (const [name, value] of [['x', '0'], ['y', '0'], ['width', '100%'], ['height', '100%']]) mask.setAttribute(name, value);
+    stroke.setAttribute('class', 'connector-draw');
+    stroke.setAttribute('pathLength', '1');
+    stroke.setAttribute('d', path.getAttribute('d'));
+    mask.append(stroke);
+    connectorDefs.append(mask);
+    path.setAttribute('mask', `url(#${mask.id})`);
+    path.classList.add('is-drawing');
+    const animation = stroke.animate(
+      [{ strokeDashoffset: step.reverse ? -1 : 1 }, { strokeDashoffset: 0 }],
+      { duration: MOTION.draw, delay: step.delay, easing: EASE, fill: 'backwards' },
+    );
+    animation.onfinish = () => stopReveal(key);
+    reveals.set(key, { path, mask, stroke, animation });
+  }
+}
+
+function stopReveal(only) {
+  for (const [key, reveal] of reveals) {
+    if (only && key !== only) continue;
+    reveal.animation.cancel();
+    reveal.mask.remove();
+    reveal.path.removeAttribute('mask');
+    reveal.path.classList.remove('is-drawing');
+    reveals.delete(key);
   }
 }
 
@@ -372,6 +496,7 @@ function scheduleConnections() {
 }
 
 function drawConnections() {
+  cancelAnimationFrame(drawFrame);
   const stage = elements.timelineStage;
   const svg = elements.connectorLayer;
   const stageRect = stage.getBoundingClientRect();
@@ -381,33 +506,50 @@ function drawConnections() {
   svg.setAttribute('width', width);
   svg.setAttribute('height', height);
 
-  // Paths are reused across redraws so emphasis changes fade instead of popping.
-  const previous = new Map([...svg.children].map((path) => [path.dataset.edge, path]));
+  // Paths are reused and only moved when their order changes, so running fades are kept.
+  const previous = new Map([...connectorPaths()].map((path) => [path.dataset.edge, path]));
   const cards = new Map([...stage.querySelectorAll('.risk-card')].map((card) => [card.dataset.key, card]));
-  const ordered = [...activeEdges].sort((a, b) => Number(litEdges.has(edgeKey(a))) - Number(litEdges.has(edgeKey(b))));
-  for (const edge of ordered) {
-    const source = cards.get(edge.from);
-    const target = cards.get(edge.to);
-    if (!source || !target) continue;
+  const ordered = [...activeEdges]
+    .filter((edge) => cards.has(edge.from) && cards.has(edge.to))
+    .sort((a, b) => Number(litEdges.has(edgeKey(a))) - Number(litEdges.has(edgeKey(b))));
+  const kept = new Set(ordered.map(edgeKey));
+  for (const [key, stale] of previous) {
+    if (kept.has(key)) continue;
+    stopReveal(key);
+    stale.remove();
+  }
 
-    const sourceRect = source.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
+  let cursor = connectorDefs.nextSibling;
+  for (const edge of ordered) {
+    // Bounding boxes include column transforms, so connectors follow columns while they ease.
+    const sourceRect = cards.get(edge.from).getBoundingClientRect();
+    const targetRect = cards.get(edge.to).getBoundingClientRect();
     const startX = sourceRect.right - stageRect.left;
     const startY = sourceRect.top - stageRect.top + sourceRect.height / 2;
     const endX = targetRect.left - stageRect.left;
     const endY = targetRect.top - stageRect.top + targetRect.height / 2;
     const distance = endX - startX;
+    const d = `M ${startX} ${startY} C ${startX + distance * .46} ${startY}, ${endX - distance * .46} ${endY}, ${endX} ${endY}`;
 
     const key = edgeKey(edge);
-    const path = previous.get(key) ?? document.createElementNS(SVG_NS, 'path');
-    previous.delete(key);
-    path.setAttribute('d', `M ${startX} ${startY} C ${startX + distance * .46} ${startY}, ${endX - distance * .46} ${endY}, ${endX} ${endY}`);
-    path.setAttribute('class', relationKind(edge.type));
+    let path = previous.get(key);
+    const created = !path;
+    if (created) {
+      path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('class', relationKind(edge.type));
+      path.dataset.edge = key;
+    }
+    path.setAttribute('d', d);
+    reveals.get(key)?.stroke.setAttribute('d', d);
     path.classList.toggle('is-highlighted', litEdges.has(key));
-    path.dataset.edge = key;
-    svg.append(path);
+    if (path === cursor) cursor = cursor.nextSibling;
+    else svg.insertBefore(path, cursor);
+    if (created && layoutEasing && !reducedMotion()) path.animate([{ opacity: 0 }], { duration: MOTION.layout, easing: EASE });
   }
-  for (const stale of previous.values()) stale.remove();
+  if (pendingReveal) {
+    pendingReveal = false;
+    revealLineage();
+  }
 }
 
 function renderSearchResults(query) {
@@ -449,6 +591,28 @@ function hideSearchResults() {
   elements.searchResults.hidden = true;
 }
 
+// Closing plays the entrance in reverse before the dialog leaves the top layer.
+function dismissModal(done) {
+  const modal = elements.detailModal;
+  const finish = () => {
+    keepModal();
+    modal.close();
+    done();
+  };
+  if (reducedMotion()) {
+    finish();
+    return;
+  }
+  modal.classList.add('is-closing');
+  modalExit = setTimeout(finish, MOTION.modal);
+}
+
+function keepModal() {
+  clearTimeout(modalExit);
+  modalExit = 0;
+  elements.detailModal.classList.remove('is-closing');
+}
+
 function render() {
   const routeState = resolveRouteState(location.hash, catalog);
   currentRoute = routeState.route;
@@ -464,6 +628,8 @@ function render() {
   const detail = Boolean(currentRoute.detail);
   document.body.classList.toggle('detail-open', detail);
   const structure = JSON.stringify([family.id, language, [...yearFilters.get(family.id)]]);
+  const previous = structureSignature ? JSON.parse(structureSignature) : null;
+  const yearsChanged = structure !== structureSignature && previous?.[0] === family.id && previous?.[1] === language;
   const signature = JSON.stringify([structure, currentRoute.year, currentRoute.id]);
   renderFamilyNav();
   if (signature !== matrixSignature) {
@@ -473,23 +639,25 @@ function render() {
       renderEditionFilter(family);
       elements.familyDescription.textContent = family.description;
       elements.timelineTitle.textContent = family.label;
-      renderTimeline(family);
+      renderTimeline(family, yearsChanged);
     }
     renderLineageSummary(family, lineage);
     elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
-    applySelection(selected.key);
+    applySelection(selected.key, { motion: !yearsChanged });
   }
   if (detail) {
     renderDetail(family, selected, lineage);
     if (!wasDetail) {
-      elements.detailModal.showModal();
+      keepModal();
+      if (!elements.detailModal.open) elements.detailModal.showModal();
       elements.detailModal.scrollTop = 0;
       scheduleFocus(() => elements.detailPage.querySelector('.detail-back'));
     }
   } else if (wasDetail) {
-    elements.detailModal.close();
-    scheduleFocus(resolveDetailReturn);
-    scheduleConnections();
+    dismissModal(() => {
+      scheduleFocus(resolveDetailReturn);
+      scheduleConnections();
+    });
   }
   wasDetail = detail;
   document.title = `${selected.id} ${selected.name} · OWASP Evolution`;
@@ -538,10 +706,11 @@ elements.timelineGrid.addEventListener('keydown', (event) => {
   target.querySelector('.risk-focus').focus();
 });
 // Hover and focus preview a row's lineage without touching the selection or the URL.
+// Leaving a row, even into a gap or header, returns to the committed selection.
 elements.timelineGrid.addEventListener('pointerover', (event) => {
   if (event.pointerType === 'touch') return;
-  const key = event.target.closest('.risk-card')?.dataset.key;
-  if (!key || key === hoverKey) return;
+  const key = event.target.closest('.risk-card')?.dataset.key ?? null;
+  if (key === hoverKey) return;
   hoverKey = key;
   updateEmphasis();
 });

@@ -68,7 +68,8 @@ test('modal closes with Back, Escape and backdrop, and restores row focus', () =
   assert.match(app, /event.clientX < bounds.left/);
   assert.match(app, /event.clientY > bounds.bottom/);
   assert.match(app, /const resolveDetailReturn = .*is-selected .risk-focus/);
-  assert.match(app, /elements.detailModal.close\(\);\s*scheduleFocus\(resolveDetailReturn\)/);
+  assert.match(app, /dismissModal\(\(\) => \{\s*scheduleFocus\(resolveDetailReturn\)/);
+  assert.match(app, /modal\.close\(\);\s*done\(\);/);
   assert.doesNotMatch(app, /matrixPage.hidden = detail|window.scrollTo/);
 });
 
@@ -88,7 +89,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: {
       matrixPage: { hidden: false },
-      detailModal: { showModal: () => calls.push('open'), close: () => calls.push('close') },
+      detailModal: { showModal: () => calls.push('open') },
       detailPage: { querySelector: () => ({}) },
       familyDescription: {}, timelineTitle: {}, timelineHelp: {}, detailTriggerLabel: {},
     },
@@ -97,6 +98,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     renderLineageSummary() {}, applySelection() {},
     scheduleFocus: (resolve) => calls.push(resolve() === row ? 'row focus' : 'modal focus'),
     resolveDetailReturn: () => row, scheduleConnections() {},
+    keepModal() {}, dismissModal: (done) => { calls.push('close'); done(); },
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
   vm.runInContext(renderSource + '\nrender();', context);
@@ -137,7 +139,8 @@ test('selecting another row keeps the matrix and only moves the selection', () =
 test('hover and focus preview without navigating; arrows move between rows', () => {
   const preview = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("window.addEventListener('hashchange'"));
   assert.doesNotMatch(preview, /navigate\(|location\.hash|history\./);
-  assert.match(app, /applyEmphasis\(hoverKey \?\? focusKey \?\? selectedKey\)/);
+  assert.match(app, /const emphasisKey = \(\) => hoverKey \?\? focusKey \?\? selectedKey/);
+  assert.match(app, /applyEmphasis\(emphasisKey\(\), mode\)/);
   for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) assert.match(app, new RegExp(`'${key}'`));
   assert.match(app, /primaryNeighbor\(activeEdges, card\.dataset\.key/);
   assert.match(app, /button\.addEventListener\('click', \(\) => navigate\(/);
@@ -148,3 +151,108 @@ test('row tooltips start with the full official name and the counter never says 
   assert.doesNotMatch(app, /nodos|lineage nodes/);
 });
 
+function renderHarness(route) {
+  const calls = [];
+  const context = vm.createContext({
+    location: { hash: '' },
+    resolveRouteState: () => ({ route: route() }),
+    currentRoute: null, catalog: { families: { web: { id: 'web', description: '', label: '' }, llm: { id: 'llm', description: '', label: '' } } },
+    yearFilters: new Map([['web', new Set([2021, 2025])], ['llm', new Set([2025])]]),
+    getRisk: () => ({ id: route().id, name: '' }),
+    getLineage: () => ({ nodes: [] }),
+    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
+    document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
+    elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
+    renderFamilyNav() {}, renderEditionFilter() {}, renderLineageSummary() {},
+    renderTimeline: (family, ease) => calls.push(`matrix ${family.id} ease=${ease}`),
+    applySelection: (key, { motion }) => calls.push(`select ${key} motion=${motion}`),
+  });
+  const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
+  vm.runInContext(renderSource, context);
+  return { context, calls };
+}
+
+test('changing visible years eases the layout and skips the commit draw; other changes do not ease', () => {
+  let route = { family: 'web', year: 2025, id: 'A01' };
+  const { context, calls } = renderHarness(() => route);
+  vm.runInContext('render();', context);
+  context.yearFilters.get('web').add(2017);
+  vm.runInContext('render();', context);
+  route = { family: 'web', year: 2025, id: 'A05' };
+  vm.runInContext('render();', context);
+  route = { family: 'llm', year: 2025, id: 'LLM01' };
+  vm.runInContext('render();', context);
+  context.language = 'en';
+  vm.runInContext('render();', context);
+  assert.deepEqual(calls, [
+    'matrix web ease=false', 'select 2025:A01 motion=true',
+    'matrix web ease=true', 'select 2025:A01 motion=false',
+    'select 2025:A05 motion=true',
+    'matrix llm ease=false', 'select 2025:LLM01 motion=true',
+    'matrix llm ease=false', 'select 2025:LLM01 motion=true',
+  ]);
+});
+
+test('only a committed selection draws and settles; previews only fade', () => {
+  const select = app.slice(app.indexOf('function applySelection('), app.indexOf('// Previews fade quickly'));
+  assert.match(select, /const committed = motion && key !== selectedKey/);
+  assert.match(select, /updateEmphasis\('commit'\);\s*if \(committed\) \{\s*settleLineage\(\);\s*pendingReveal = true;/);
+  const preview = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("window.addEventListener('hashchange'"));
+  assert.doesNotMatch(preview, /revealLineage|settleLineage|pendingReveal|'commit'/);
+  assert.match(app, /classList\.toggle\('is-previewing', mode === 'preview'\)/);
+  assert.match(app, /if \(key !== selectedKey\) stopReveal\(\)/);
+});
+
+test('hover leaving a row, even into a gap, returns to the committed selection', () => {
+  const over = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("addEventListener('pointerleave'"));
+  assert.match(over, /closest\('\.risk-card'\)\?\.dataset\.key \?\? null/);
+  assert.doesNotMatch(over, /if \(!key/);
+});
+
+test('reduced motion skips every scripted draw, settle, layout ease and modal exit', () => {
+  for (const name of ['revealLineage', 'settleLineage', 'dismissModal']) {
+    const body = app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+    assert.match(body, /reducedMotion\(\)/, name);
+  }
+  assert.match(app, /const before = ease && !reducedMotion\(\) \? columnBoxes\(\) : null/);
+  assert.match(app, /if \(created && layoutEasing && !reducedMotion\(\)\)/);
+  assert.match(app, /const reducedMotion = \(\) => prefersReducedMotion\(window\)/);
+});
+
+test('connectors are redrawn from the same transformed boxes each frame while columns ease', () => {
+  const ease = app.slice(app.indexOf('function easeColumns('), app.indexOf('// Selection only moves classes'));
+  assert.match(ease, /column\.style\.transform = /);
+  assert.match(ease, /drawConnections\(\);/);
+  assert.doesNotMatch(ease, /scheduleConnections|transition/);
+  assert.match(app, /reveals\.get\(key\)\?\.stroke\.setAttribute\('d', d\)/);
+});
+
+test('dismissModal closes after the exit animation, or at once with reduced motion', () => {
+  const source = app.slice(app.indexOf('function dismissModal('), app.indexOf('function render()'));
+  const run = (reduced) => {
+    const events = [];
+    let timer;
+    const classes = new Set();
+    const context = vm.createContext({
+      MOTION: { modal: 220 }, modalExit: 0,
+      reducedMotion: () => reduced,
+      setTimeout: (callback, ms) => { timer = { callback, ms }; return 1; },
+      clearTimeout() {},
+      elements: { detailModal: { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) }, close: () => events.push('close') } },
+    });
+    vm.runInContext(source, context);
+    context.done = () => events.push('done');
+    vm.runInContext('dismissModal(done);', context);
+    return { events, timer, classes };
+  };
+  const reduced = run(true);
+  assert.deepEqual(reduced.events, ['close', 'done']);
+  assert.equal(reduced.timer, undefined);
+  const animated = run(false);
+  assert.deepEqual(animated.events, []);
+  assert.ok(animated.classes.has('is-closing'));
+  assert.equal(animated.timer.ms, 220);
+  animated.timer.callback();
+  assert.deepEqual(animated.events, ['close', 'done']);
+  assert.ok(!animated.classes.has('is-closing'));
+});

@@ -50,7 +50,11 @@
   --risk-row-height: clamp(30px, calc((100vh - 340px) / 10), 36px);
   --ring: 0 0 0 1px var(--line);
   --motion: 200ms;
+  --motion-fast: 120ms;
+  --motion-bar: 180ms;
+  --motion-modal: 220ms;
   --ease: cubic-bezier(.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(1, 0, .8, 1);
 }
 
 * { box-sizing: border-box; }
@@ -364,25 +368,37 @@ kbd {
   overflow: visible;
   pointer-events: none;
 }
-.connector-layer path {
+.connector-layer > path {
   fill: none;
   stroke: var(--continues);
   stroke-width: 1;
   opacity: .45;
   transition: opacity var(--motion) var(--ease), stroke-width var(--motion) var(--ease);
 }
-.connector-layer path.renamed {
+.connector-layer > path.renamed {
   stroke: var(--renamed);
   stroke-dasharray: 5 5;
 }
-.connector-layer path.merged {
+.connector-layer > path.merged {
   stroke: var(--merged);
   stroke-dasharray: 2 5;
   stroke-linecap: round;
 }
 /* With a lineage in focus, everything else recedes to a thin, quiet stroke. */
-.has-lineage .connector-layer path { opacity: .18; stroke-width: 1; }
-.connector-layer path.is-highlighted { opacity: 1; stroke-width: 2.4; }
+.has-lineage .connector-layer > path { opacity: .18; stroke-width: 1; }
+.connector-layer > path.is-highlighted { opacity: 1; stroke-width: 2.4; }
+/* Hover and focus preview is lighter than a commit: a quick fade and never a draw. */
+.is-previewing .connector-layer > path,
+.is-previewing .risk-card { transition-duration: var(--motion-fast); }
+/* A committed lineage appears through its draw, so those strokes skip the fade. */
+.connector-layer > path.is-drawing { transition: none; }
+/* The draw runs on a solid mask so dashed and dotted strokes keep their pattern. */
+.connector-draw {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 8;
+  stroke-dasharray: 1 2;
+}
 .timeline-grid {
   position: relative;
   z-index: 2;
@@ -451,11 +467,14 @@ kbd {
   inset: 0 auto 0 0;
   width: 2px;
   background: var(--ink);
-  opacity: 0;
-  transform: scaleY(.4);
-  transition: opacity var(--motion) var(--ease), transform var(--motion) var(--ease);
+  transform: scaleY(0);
+  transform-origin: top;
 }
-.risk-card.is-selected::before { opacity: 1; transform: scaleY(1); }
+/* The bar grows from the top of the newly selected row; the previous one clears at once. */
+.risk-card.is-selected::before {
+  transform: scaleY(1);
+  transition: transform var(--motion-bar) var(--ease);
+}
 .risk-focus {
   flex: 1;
   display: grid;
@@ -518,7 +537,7 @@ kbd {
   padding: 0 6px 0 18px;
   background: linear-gradient(90deg, transparent, var(--row-bg) 16px);
   pointer-events: none;
-  animation: soft-in var(--motion) var(--ease);
+  animation: soft-in var(--motion-bar) var(--ease);
 }
 .risk-detail {
   min-height: 24px;
@@ -553,9 +572,15 @@ body.detail-open { overflow: hidden; }
   box-shadow: 0 24px 80px #0009;
 }
 .detail-modal::backdrop { background: rgb(0 0 0 / 80%); }
-.detail-modal[open] { animation: modal-in 220ms cubic-bezier(.2, 0, 0, 1); }
-.detail-modal[open]::backdrop { animation: soft-in 220ms ease-out; }
-@keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(.99); } }
+/* The dialog rises 8px as it fades in; closing plays the same motion in reverse.
+   ::backdrop does not inherit custom properties everywhere, so its timing is literal. */
+.detail-modal[open] { animation: modal-in var(--motion-modal) var(--ease); }
+.detail-modal[open]::backdrop { animation: soft-in 220ms cubic-bezier(.2, 0, 0, 1); }
+.detail-modal.is-closing { animation: modal-out var(--motion-modal) var(--ease-exit) forwards; }
+.detail-modal.is-closing::backdrop { animation: soft-out 220ms cubic-bezier(1, 0, .8, 1) forwards; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes modal-out { to { opacity: 0; transform: translateY(8px); } }
+@keyframes soft-out { to { opacity: 0; } }
 .detail-page {
   margin: 0;
   padding: clamp(20px, 4vw, 40px);
@@ -774,7 +799,7 @@ footer p { margin: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root { --motion: 0ms; }
+  :root { --motion: 0ms; --motion-fast: 0ms; --motion-bar: 0ms; --motion-modal: 0ms; }
   html { scroll-behavior: auto; }
   *, *::before, *::after, ::backdrop {
     animation: none !important;

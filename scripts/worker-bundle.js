@@ -13,6 +13,7 @@ const PUBLIC_ASSETS = [
   ['src/locale.js', 'text/javascript; charset=utf-8'],
   ['src/i18n.js', 'text/javascript; charset=utf-8'],
   ['src/editions.js', 'text/javascript; charset=utf-8'],
+  ['src/motion.js', 'text/javascript; charset=utf-8'],
   ['src/translations-en.js', 'text/javascript; charset=utf-8'],
   ['src/model.js', 'text/javascript; charset=utf-8'],
   ['assets/fonts/Geist-Regular.ttf', 'font/ttf'],
