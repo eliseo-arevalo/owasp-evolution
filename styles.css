@@ -821,3 +821,23 @@ select:focus-visible, .dock-resizer:focus-visible { outline: 2px solid var(--foc
 #export-menu button:disabled { color: var(--quiet); cursor: default; }
 #export-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (max-width: 760px) { .header-meta .search-control input { min-width: 0; width: 100%; } }
+
+.explorer-shell { position: relative; }
+.dock-control[hidden] { display: none; }
+.dock-resizer { height: 16px; }
+.dock-resizer::after { top: 5px; height: 4px; }
+[data-dock='right'] .dock-resizer, [data-dock='left'] .dock-resizer { width: 16px; }
+[data-dock='right'] .dock-resizer::after, [data-dock='left'] .dock-resizer::after { left: 5px; width: 4px; }
+.detail-header { cursor: grab; touch-action: none; }
+.detail-header:active { cursor: grabbing; }
+.dock-drop { position: absolute; z-index: 20; pointer-events: none; border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--ink) 5%, transparent); opacity: .4; border-radius: 5px; }
+.dock-drop-left { inset: 12px auto 12px 4px; width: 20%; }
+.dock-drop-right { inset: 12px 4px 12px auto; width: 20%; }
+.dock-drop-bottom { inset: auto 4px 12px; height: 22%; }
+.dock-drop.is-target { opacity: 1; background: color-mix(in srgb, var(--ink) 14%, transparent); }
+@media (max-width: 640px), (pointer: coarse) and (max-width: 900px) {
+  .explorer-shell { min-height: 0; }
+  .detail-header { cursor: auto; touch-action: auto; }
+  .timeline-panel .timeline-stage { --risk-row-height: clamp(24px, calc((100cqh - 56px) / 10), 36px); }
+  .timeline-scroll { overscroll-behavior: contain; }
+}

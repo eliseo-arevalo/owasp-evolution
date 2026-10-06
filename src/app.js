@@ -64,14 +64,32 @@ let settling = [];
 let layoutFrame = 0;
 let layoutEasing = false;
 let modalExit = 0;
-let dockPosition = 'bottom';
-try { dockPosition = localStorage.getItem('owasp-dock') || 'bottom'; } catch {}
-if (!['bottom', 'left', 'right'].includes(dockPosition)) dockPosition = 'bottom';
 const shell = document.querySelector('.explorer-shell');
 const resizer = document.querySelector('#dock-resizer');
-const narrowScreen = matchMedia('(max-width: 760px)');
-let dockHeight = 320;
-let dockWidth = 380;
+const narrowScreen = matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 900px)');
+const dockPreferences = { desktop: { side: 'left', width: 380, height: 320 }, mobile: { side: 'bottom', height: 0 } };
+try {
+  const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
+  for (const key of ['desktop', 'mobile']) {
+    const value = saved[key];
+    if (!value) continue;
+    if (['left', 'right', 'bottom'].includes(value.side)) dockPreferences[key].side = value.side;
+    for (const size of ['width', 'height']) if (Number.isFinite(value[size]) && value[size] > 0) dockPreferences[key][size] = value[size];
+  }
+  if (!saved.desktop) {
+    const legacy = localStorage.getItem('owasp-dock');
+    if (['left', 'right', 'bottom'].includes(legacy)) dockPreferences.desktop.side = legacy;
+  }
+} catch {}
+let dockPosition = dockPreferences.desktop.side;
+let dragSize = null;
+const preference = () => dockPreferences[narrowScreen.matches ? 'mobile' : 'desktop'];
+function saveDock() {
+  try {
+    localStorage.setItem('owasp-dock-layout', JSON.stringify(dockPreferences));
+    localStorage.setItem('owasp-dock', dockPreferences.desktop.side);
+  } catch {}
+}
 let maskCount = 0;
 let entryPending = true;
 let entryAnimations = [];
@@ -766,58 +784,114 @@ function dockControl() {
   select.disabled = narrowScreen.matches;
   select.addEventListener('change', () => {
     dockPosition = select.value;
-    try { localStorage.setItem('owasp-dock', dockPosition); } catch {}
+    dockPreferences.desktop.side = dockPosition;
+    saveDock();
     updateDock();
   });
   label.append(caption, select);
   return label;
 }
 
+let dockLayoutFrame = 0;
+let dockLayoutUntil = 0;
+function followDockLayout() {
+  dockLayoutUntil = performance.now() + (reducedMotion() ? 0 : MOTION.modal + 50);
+  if (dockLayoutFrame) return;
+  const frame = now => {
+    drawConnections();
+    dockLayoutFrame = now < dockLayoutUntil ? requestAnimationFrame(frame) : 0;
+  };
+  dockLayoutFrame = requestAnimationFrame(frame);
+}
+shell.addEventListener('transitionrun', event => {
+  if (event.target === shell) followDockLayout();
+});
+
+function dockLimits() {
+  const bottom = shell.dataset.dock === 'bottom';
+  const available = bottom ? shell.clientHeight - 22 : shell.clientWidth;
+  return { min: bottom ? Math.max(100, available * .25) : 240,
+    max: bottom ? available * .9 : Math.max(240, available * .48), available };
+}
 function updateDock() {
   const position = narrowScreen.matches ? 'bottom' : dockPosition;
   shell.dataset.dock = position;
   const bottom = position === 'bottom';
-  const max = bottom ? Math.max(200, Math.floor(innerHeight * .65)) : Math.max(240, Math.floor(shell.clientWidth * .48));
-  const size = Math.min(max, bottom ? dockHeight : dockWidth);
+  const { min, max, available } = dockLimits();
+  const size = Math.max(min, Math.min(max, dragSize ?? (preference()[bottom ? 'height' : 'width'] || available * .5)));
   shell.style.setProperty('--dock-size', `${size}px`);
   resizer.setAttribute('aria-orientation', bottom ? 'horizontal' : 'vertical');
-  resizer.setAttribute('aria-valuemin', bottom ? '200' : '240');
-  resizer.setAttribute('aria-valuemax', String(max));
-  resizer.setAttribute('aria-valuenow', String(size));
+  resizer.setAttribute('aria-valuemin', String(Math.round(min)));
+  resizer.setAttribute('aria-valuemax', String(Math.round(max)));
+  resizer.setAttribute('aria-valuenow', String(Math.round(size)));
   resizer.setAttribute('aria-label', language === 'es' ? 'Cambiar tamaño del panel' : 'Resize panel');
   const select = document.querySelector('#dock-select');
-  if (select) { select.disabled = narrowScreen.matches; select.value = position; }
+  if (select) { select.disabled = narrowScreen.matches; select.value = position; select.parentElement.hidden = narrowScreen.matches; }
   scheduleConnections();
 }
-
-function resizeDock(delta) {
-  const bottom = shell.dataset.dock === 'bottom';
-  const min = bottom ? 200 : 240;
-  const max = Number(resizer.getAttribute('aria-valuemax'));
-  const size = Math.max(min, Math.min(max, Number(resizer.getAttribute('aria-valuenow')) + delta));
-  if (bottom) dockHeight = size; else dockWidth = size;
+function commitDock(size) {
+  const { min, max } = dockLimits();
+  preference()[shell.dataset.dock === 'bottom' ? 'height' : 'width'] = Math.max(min, Math.min(max, size));
+  dragSize = null;
+  saveDock();
   updateDock();
+}
+function resizeDock(delta) {
+  commitDock(Number(resizer.getAttribute('aria-valuenow')) + delta);
 }
 resizer.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   event.preventDefault();
   resizer.setPointerCapture(event.pointerId);
   shell.classList.add('is-resizing');
-  let previous = shell.dataset.dock === 'bottom' ? event.clientY : event.clientX;
-  const move = (event) => {
-    const bottom = shell.dataset.dock === 'bottom';
-    const next = bottom ? event.clientY : event.clientX;
-    resizeDock((next - previous) * (shell.dataset.dock === 'left' ? 1 : -1));
-    previous = next;
+  const side = shell.dataset.dock, bottom = side === 'bottom';
+  const axis = e => bottom ? e.clientY : e.clientX;
+  const start = axis(event), initial = Number(resizer.getAttribute('aria-valuenow'));
+  const { min, max, available } = dockLimits();
+  let raw = initial, velocity = 0, previous = start, time = event.timeStamp, frame = 0, paintedSize = initial;
+  const paint = () => {
+    frame = 0;
+    dragSize = Math.max(min, Math.min(max, raw));
+    updateDock();
+    // Reserve matrix space first, then interpolate the growing panel with a
+    // transform inside its slot. Shrinking never paints over the matrix.
+    const scale = reducedMotion() ? 1 : Math.min(1, paintedSize / dragSize);
+    elements.detailModal.style.transformOrigin = bottom ? 'bottom' : side === 'left' ? 'left' : 'right';
+    elements.detailModal.style.transform = bottom && raw < min
+      ? `translateY(${Math.min(min - raw, min)}px)`
+      : `${bottom ? 'scaleY' : 'scaleX'}(${scale})`;
+    paintedSize = dragSize;
+    drawConnections();
   };
-  const finish = () => {
+  const move = e => {
+    if (e.pointerId !== event.pointerId) return;
+    const next = axis(e), sign = side === 'left' ? 1 : -1;
+    velocity = (next - previous) * sign / Math.max(1, e.timeStamp - time);
+    raw = initial + (next - start) * sign;
+    previous = next; time = e.timeStamp;
+    if (!frame) frame = requestAnimationFrame(paint);
+  };
+  const finish = e => {
+    if (e.pointerId !== event.pointerId) return;
+    cancelAnimationFrame(frame);
+    elements.detailModal.style.transform = '';
+    elements.detailModal.style.transformOrigin = '';
     shell.classList.remove('is-resizing');
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) resizer.removeEventListener(type, finish);
     resizer.removeEventListener('pointermove', move);
-    resizer.removeEventListener('lostpointercapture', finish);
+    const cancelled = e.type !== 'pointerup';
+    const projected = raw + (performance.now() - time < 120 ? velocity * 160 : 0);
+    if (!cancelled && bottom && (raw < min * .65 || projected < min * .45)) {
+      dragSize = null; updateDock(); returnToMatrix();
+    } else {
+      let target = cancelled ? initial : projected;
+      if (bottom && narrowScreen.matches && !cancelled) target = [.25, .5, .9].map(n => available * n).reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
+      commitDock(target);
+    }
     scheduleConnections();
   };
   resizer.addEventListener('pointermove', move);
-  resizer.addEventListener('lostpointercapture', finish);
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) resizer.addEventListener(type, finish);
 });
 resizer.addEventListener('keydown', (event) => {
   const sign = shell.dataset.dock === 'left' ? 1 : -1;
@@ -826,6 +900,41 @@ resizer.addEventListener('keydown', (event) => {
   if (!direction[event.key]) return;
   event.preventDefault();
   resizeDock(direction[event.key] * (event.shiftKey ? 40 : 10));
+});
+// Delegation survives detail content updates. Interactive header controls keep their behavior.
+elements.detailModal.addEventListener('pointerdown', event => {
+  const header = event.target.closest('.detail-header');
+  if (!header || narrowScreen.matches || event.button !== 0 || event.target.closest('button, select, a, input')) return;
+  event.preventDefault();
+  header.setPointerCapture(event.pointerId);
+  const x = event.clientX, y = event.clientY;
+  let target = null, moved = false, frame = 0;
+  const zones = ['left', 'right', 'bottom'].map(side => {
+    const zone = node('div', `dock-drop dock-drop-${side}`);
+    zone.setAttribute('aria-hidden', 'true'); shell.append(zone); return zone;
+  });
+  const move = e => {
+    if (e.pointerId !== event.pointerId) return;
+    moved ||= Math.hypot(e.clientX - x, e.clientY - y) > 8;
+    const box = shell.getBoundingClientRect();
+    target = e.clientY > box.bottom - box.height * .25 ? 'bottom' : e.clientX < box.left + box.width * .25 ? 'left' : e.clientX > box.right - box.width * .25 ? 'right' : null;
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      header.style.transform = moved ? `translate(${(e.clientX - x) * .06}px, ${(e.clientY - y) * .06}px)` : '';
+      zones.forEach((zone, i) => zone.classList.toggle('is-target', ['left', 'right', 'bottom'][i] === target));
+    });
+  };
+  const finish = e => {
+    if (e.pointerId !== event.pointerId) return;
+    cancelAnimationFrame(frame); header.style.transform = ''; zones.forEach(zone => zone.remove());
+    header.removeEventListener('pointermove', move);
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) header.removeEventListener(type, finish);
+    if (e.type === 'pointerup' && moved && target) {
+      dockPosition = target; dockPreferences.desktop.side = target; saveDock(); updateDock();
+    }
+  };
+  header.addEventListener('pointermove', move);
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) header.addEventListener(type, finish);
 });
 
 function dismissModal(done) {
@@ -836,6 +945,7 @@ function dismissModal(done) {
     done();
   };
   shell.classList.remove('has-detail');
+  followDockLayout();
   modal.inert = true;
   if (reducedMotion()) { finish(); return; }
   modal.classList.add('is-closing');
@@ -887,6 +997,7 @@ function render() {
       elements.detailModal.inert = false;
       updateDock();
       shell.classList.add('has-detail');
+      followDockLayout();
       elements.detailModal.scrollTop = 0;
       scheduleFocus(() => elements.detailPage.querySelector('.detail-back'));
     }

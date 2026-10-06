@@ -96,7 +96,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     renderLineageSummary() {}, applySelection() {},
     scheduleFocus: (resolve) => calls.push(resolve() === row ? 'row focus' : 'modal focus'),
     resolveDetailReturn: () => row, scheduleConnections() {},
-    shell: { classList: { add() {} } }, updateDock() {},
+    shell: { classList: { add() {} } }, updateDock() {}, followDockLayout() {},
     keepModal() {}, dismissModal: (done) => { calls.push('close'); done(); },
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
@@ -233,7 +233,7 @@ test('dismissModal closes after the exit animation, or at once with reduced moti
     let timer;
     const classes = new Set();
     const context = vm.createContext({
-      MOTION: { modal: 220 }, modalExit: 0, shell: { classList: { remove() {} } },
+      MOTION: { modal: 220 }, modalExit: 0, shell: { classList: { remove() {} } }, followDockLayout() {},
       reducedMotion: () => reduced,
       setTimeout: (callback, ms) => { timer = { callback, ms }; return 1; },
       clearTimeout() {},
