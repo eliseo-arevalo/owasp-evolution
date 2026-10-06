@@ -1,6 +1,9 @@
 import { english } from './translations-en.js';
 
 const ui = {
+  'Exportar': 'Export',
+  'Markdown · detalle': 'Markdown · detail',
+  'No se pudo exportar. Inténtalo de nuevo.': 'Export failed. Please try again.',
   'Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.': 'Interactive explorer of OWASP Top 10 evolution for web applications and GenAI/LLM systems.',
   'Saltar al explorador': 'Skip to explorer',
   'OWASP Evolution, inicio': 'OWASP Evolution, home',

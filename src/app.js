@@ -1,3 +1,4 @@
+import { exportFilename, exportCSV, exportJSON, exportMarkdown, matrixSVG, pngBlob, download } from './export.js';
 import { detectLanguage, readLanguagePreference, saveLanguagePreference } from './locale.js';
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
 import {
@@ -968,3 +969,58 @@ themeSelect.addEventListener('change', () => {
 });
 systemTheme.addEventListener('change', () => applyTheme(document.documentElement.dataset.themePreference));
 applyTheme(document.documentElement.dataset.themePreference);
+
+const exportButton = document.querySelector('#export-button');
+const exportMenu = document.querySelector('#export-menu');
+function closeExport(restore = false) {
+  exportMenu.hidden = true;
+  exportButton.setAttribute('aria-expanded', 'false');
+  if (restore) exportButton.focus();
+}
+function openExport(last = false) {
+  exportMenu.querySelector('[data-export="md"]').disabled = !getRisk(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
+  exportMenu.hidden = false;
+  exportButton.setAttribute('aria-expanded', 'true');
+  const items = [...exportMenu.querySelectorAll('button:not(:disabled)')];
+  (last ? items.at(-1) : items[0]).focus();
+}
+exportButton.addEventListener('click', () => exportMenu.hidden ? openExport() : closeExport(true));
+exportButton.addEventListener('keydown', (event) => {
+  if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openExport(event.key === 'ArrowUp'); }
+});
+exportMenu.addEventListener('keydown', (event) => {
+  const items = [...exportMenu.querySelectorAll('button:not(:disabled)')];
+  const index = items.indexOf(document.activeElement);
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape', 'Tab'].includes(event.key)) {
+    if (event.key === 'Tab') { closeExport(); return; }
+    event.preventDefault(); event.stopPropagation();
+    if (event.key === 'Escape') { closeExport(true); return; }
+    items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+  }
+});
+document.addEventListener('click', (event) => { if (!event.target.closest('.export-control')) closeExport(); });
+exportMenu.addEventListener('focusout', (event) => { if (!event.relatedTarget?.closest('.export-control')) closeExport(); });
+exportMenu.addEventListener('click', async (event) => {
+  const format = event.target.dataset.export;
+  if (!format || event.target.disabled) return;
+  closeExport(true);
+  const family = catalog.families[currentRoute.family];
+  const years = [...yearFilters.get(family.id)];
+  const item = getRisk(catalog, family.id, currentRoute.year, currentRoute.id);
+  try {
+    let blob;
+    if (format === 'png' || format === 'svg') {
+      await document.fonts.ready;
+      drawConnections();
+      const image = matrixSVG(elements.timelineStage, language);
+      blob = format === 'png' ? await pngBlob(image) : new Blob([image.svg], { type: 'image/svg+xml;charset=utf-8' });
+    } else {
+      const content = format === 'csv' ? exportCSV(family, years) : format === 'json' ? exportJSON(family, years) : exportMarkdown(family, currentRoute.year, item, language);
+      blob = new Blob([content], { type: format === 'csv' ? 'text/csv;charset=utf-8' : format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8' });
+    }
+    download(blob, exportFilename(family.id, years, format));
+  } catch (error) {
+    document.querySelector('#export-status').textContent = t('No se pudo exportar. Inténtalo de nuevo.');
+    console.error(error);
+  }
+});

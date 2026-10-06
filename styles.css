@@ -804,3 +804,12 @@ select:focus-visible, .dock-resizer:focus-visible { outline: 2px solid var(--foc
 @media (prefers-reduced-motion: reduce) {
   .explorer-shell { transition: none; }
 }
+
+.export-control { position: relative; flex: none; }
+#export-button { height: 32px; width: 70px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font-size: 12px; cursor: pointer; }
+#export-menu { position: absolute; top: 38px; right: 0; z-index: 30; width: 160px; padding: 4px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); box-shadow: 0 4px 16px #0003; }
+#export-menu button { display: block; width: 100%; padding: 8px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+#export-menu button:focus, #export-menu button:hover { background: var(--surface-hover); }
+#export-menu button:disabled { color: var(--quiet); cursor: default; }
+#export-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 760px) { .header-meta .search-control input { min-width: 0; width: 100%; } }
