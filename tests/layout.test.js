@@ -14,7 +14,7 @@ test('desktop timeline is a compact fluid matrix without horizontal scrolling', 
   const css = await readFile(cssUrl, 'utf8');
 
   assert.match(css, /--risk-row-height:\s*clamp\(/);
-  assert.match(rule(css, '.explorer-shell'), /display:\s*block/);
+  assert.match(css, /\.explorer-shell\s*\{[^}]*display:\s*block/);
   assert.match(rule(css, '.timeline-scroll'), /overflow:\s*visible/);
   assert.match(rule(css, '.timeline-stage'), /min-width:\s*0/);
   assert.match(
@@ -141,24 +141,17 @@ test('category details are a centered reading modal over the visible matrix', as
   assert.match(rule(css, 'body.detail-open'), /overflow:\s*hidden/);
   assert.match(html, /<div id="matrix-page">/);
   assert.match(html, /<dialog[^>]*id="detail-modal"[^>]*aria-labelledby="detail-title"/);
-  assert.match(html, /id="open-detail"[^>]*aria-haspopup="dialog"/);
+  assert.doesNotMatch(html, /id="open-detail"/);
   assert.doesNotMatch(html, /<aside/);
 });
 
-test('lineage summary reserves one fixed line with ellipsis, including hidden years', async () => {
-  const css = await readFile(cssUrl, 'utf8');
-  const help = rule(css, '.timeline-help');
-  assert.match(help, /height:\s*28px/);
-  assert.match(help, /overflow:\s*hidden/);
-  assert.match(help, /text-overflow:\s*ellipsis/);
-  assert.match(help, /white-space:\s*nowrap/);
-  assert.doesNotMatch(css, /\.path-route\s*\{\s*white-space:\s*normal/);
-});
-test('search, segmented editions, legend and family share a wrapping control bar', async () => {
+test('primary family selector follows the title, with fixed secondary filter geometry', async () => {
   const [css, html] = await Promise.all([readFile(cssUrl, 'utf8'), readFile(htmlUrl, 'utf8')]);
+  const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
   const toolbar = html.slice(html.indexOf('class="toolbar"'), html.indexOf('class="explorer-shell"'));
-  for (const id of ['risk-search', 'edition-options', 'family-nav']) assert.ok(toolbar.includes(`id="${id}"`));
-  assert.match(toolbar, /class="legend"/);
-  assert.match(rule(css, '.toolbar'), /flex-wrap:\s*wrap/);
-  assert.match(css, /label:has\(input:checked\)/);
+  assert.match(header, /OWASP Evolution[\s\S]*id="family-nav"/);
+  for (const id of ['risk-search', 'edition-options']) assert.ok(toolbar.includes(`id="${id}"`));
+  assert.doesNotMatch(toolbar, /id="family-nav"/);
+  assert.match(css, /#edition-options \{[^}]*height: 28px;[^}]*flex-wrap: nowrap/);
+  assert.doesNotMatch(html, /family-description|timeline-heading|<footer|class="method"|<kbd|brand-mark/);
 });

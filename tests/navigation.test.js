@@ -53,7 +53,6 @@ test('shared detail links return to their category without going to another webs
 
 test('detail buttons and row double click open the modal', () => {
   assert.match(app, /detail.addEventListener\('click', openDetail/);
-  assert.match(app, /elements.openDetailButton.addEventListener\('click', \(\) => openDetail/);
   assert.match(app, /button.addEventListener\('dblclick', openDetail\)/);
   assert.match(app, /if \(event.detail > 1\) return/);
   assert.doesNotMatch(app, /setInspectorOpen/);
@@ -95,7 +94,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
       detailPage: { querySelector: () => ({}) },
       familyDescription: {}, timelineTitle: {}, timelineHelp: {}, detailTriggerLabel: {},
     },
-    renderFamilyNav() {}, renderEditionFilter() {}, visibleEditions: () => [2021, 2025],
+    captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {}, visibleEditions: () => [2021, 2025],
     renderTimeline: () => calls.push('matrix'), renderDetail: () => calls.push('detail'),
     renderLineageSummary() {}, applySelection() {},
     scheduleFocus: (resolve) => calls.push(resolve() === row ? 'row focus' : 'modal focus'),
@@ -127,7 +126,7 @@ test('selecting another row keeps the matrix and only moves the selection', () =
     applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
     document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
-    renderFamilyNav() {}, renderEditionFilter() {},
+    captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {},
     renderTimeline: () => calls.push('matrix'), renderLineageSummary: () => calls.push('path'),
     applySelection: (key) => calls.push(`select ${key}`),
   });
@@ -135,7 +134,7 @@ test('selecting another row keeps the matrix and only moves the selection', () =
   vm.runInContext(renderSource + '\nrender();', context);
   route = { family: 'web', year: 2025, id: 'A05' };
   vm.runInContext('render();', context);
-  assert.deepEqual(calls, ['matrix', 'path', 'select 2025:A01', 'path', 'select 2025:A05']);
+  assert.deepEqual(calls, ['matrix', 'select 2025:A01', 'select 2025:A05']);
 });
 
 test('hover and focus preview without navigating; arrows move between rows', () => {
@@ -165,7 +164,7 @@ function renderHarness(route) {
     applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
     document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
-    renderFamilyNav() {}, renderEditionFilter() {}, renderLineageSummary() {},
+    captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {}, renderLineageSummary() {},
     renderTimeline: (family, ease) => calls.push(`matrix ${family.id} ease=${ease}`),
     applySelection: (key, { motion }) => calls.push(`select ${key} motion=${motion}`),
   });
@@ -190,7 +189,7 @@ test('changing visible years eases the layout and skips the commit draw; other c
     'matrix web ease=false', 'select 2025:A01 motion=true',
     'matrix web ease=true', 'select 2025:A01 motion=false',
     'select 2025:A05 motion=true',
-    'matrix llm ease=false', 'select 2025:LLM01 motion=true',
+    'matrix llm ease=false', 'select 2025:LLM01 motion=false',
     'matrix llm ease=false', 'select 2025:LLM01 motion=true',
   ]);
 });

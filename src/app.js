@@ -5,11 +5,8 @@ import {
   visibleEditions,
   visibleConnections,
   relationKind,
-  lineageKinds,
   primaryNeighbor,
   rowCues,
-  lineagePath,
-  formatLineagePath,
   yearOf,
   idOf,
 } from './editions.js';
@@ -40,11 +37,6 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const elements = {
   brand: document.querySelector('.brand'),
   familyNav: document.querySelector('#family-nav'),
-  familyDescription: document.querySelector('#family-description'),
-  timelineTitle: document.querySelector('#timeline-title'),
-  timelineHelp: document.querySelector('#timeline-help'),
-  openDetailButton: document.querySelector('#open-detail'),
-  detailTriggerLabel: document.querySelector('#detail-trigger-label'),
   timelineStage: document.querySelector('#timeline-stage'),
   timelineGrid: document.querySelector('#timeline-grid'),
   connectorLayer: document.querySelector('#connector-layer'),
@@ -74,6 +66,8 @@ let modalExit = 0;
 let maskCount = 0;
 let entryPending = true;
 let entryAnimations = [];
+let familyExit = null;
+let familyAnimations = [];
 const reveals = new Map();
 const connectorDefs = document.createElementNS(SVG_NS, 'defs');
 elements.connectorLayer.prepend(connectorDefs);
@@ -111,10 +105,18 @@ function returnToMatrix() {
 }
 
 function renderFamilyNav() {
-  elements.familyNav.replaceChildren();
+  if (elements.familyNav.childElementCount) {
+    [...elements.familyNav.children].forEach((button) => {
+      button.textContent = catalog.families[button.dataset.family].shortLabel;
+      if (button.dataset.family === currentRoute.family) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    return;
+  }
   for (const family of Object.values(catalog.families)) {
     const button = node('button', 'family-tab', family.shortLabel);
     button.type = 'button';
+    button.dataset.family = family.id;
     if (family.id === currentRoute.family) button.setAttribute('aria-current', 'page');
     button.addEventListener('click', () => {
       const editions = visibleEditions(family, yearFilters.get(family.id));
@@ -147,16 +149,6 @@ function cueDescriptions(cue) {
     cue.hiddenAfter && (es ? `sucesora en ${cue.hiddenAfter}, edición oculta` : `successor in ${cue.hiddenAfter}, hidden edition`),
     cue.leaves && (es ? `sale del Top 10 en ${cue.leaves}` : `leaves the Top 10 in ${cue.leaves}`),
   ].filter(Boolean);
-}
-
-function riskCues(cue) {
-  const cues = node('span', 'risk-cues');
-  cues.setAttribute('aria-hidden', 'true');
-  if (cue.isNew) cues.append(node('span', 'risk-cue', t('nueva')));
-  if (cue.hiddenBefore) cues.append(node('span', 'risk-cue is-faint', `← ${cue.hiddenBefore}`));
-  if (cue.hiddenAfter) cues.append(node('span', 'risk-cue is-faint', `→ ${cue.hiddenAfter}`));
-  if (cue.leaves) cues.append(node('span', 'risk-exit'));
-  return cues.childElementCount ? cues : null;
 }
 
 function renderTimeline(family, ease = false) {
@@ -195,9 +187,6 @@ function renderTimeline(family, ease = false) {
       retained.style.transform = '';
       for (const card of retained.querySelectorAll('.risk-card')) {
         const cue = cues.get(card.dataset.key);
-        card.querySelector('.risk-cues')?.remove();
-        const marks = riskCues(cue);
-        if (marks) card.querySelector('.risk-focus').append(marks);
         const risk = edition.items.find((item) => item.id === idOf(card.dataset.key));
         const label = `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${edition.year}`;
         card.querySelector('.risk-focus').setAttribute('aria-label', [label, ...cueDescriptions(cue)].join(', '));
@@ -212,7 +201,6 @@ function renderTimeline(family, ease = false) {
     const year = node('h3', 'edition-year', String(edition.year));
     year.id = `edition-${family.id}-${edition.year}`;
     header.append(year);
-    if (edition.status === t('Vigente')) header.append(node('span', 'edition-status', edition.status));
 
     const list = node('div', 'risk-list');
     for (const rawRisk of edition.items) {
@@ -231,8 +219,6 @@ function renderTimeline(family, ease = false) {
       const copy = node('span', 'risk-copy');
       copy.append(node('span', 'risk-name', risk.name));
       button.append(rank, copy);
-      const marks = riskCues(cue);
-      if (marks) button.append(marks);
       button.addEventListener('click', (event) => {
         // A double click commits once; keyboard activation has detail === 0.
         if (event.detail > 1) return;
@@ -256,6 +242,43 @@ function renderTimeline(family, ease = false) {
   activeEdges = visibleConnections(family, years);
   if (before) easeColumns(before);
   else scheduleConnections();
+}
+
+// Keep the previous painted matrix above the new one until the crossfade ends.
+// The snapshot is inert and outside flow; neither chrome nor matrix geometry moves.
+function captureFamily() {
+  familyExit?.remove();
+  familyAnimations.forEach((animation) => animation.cancel());
+  familyAnimations = [];
+  if (reducedMotion()) return null;
+  stopReveal();
+  stopSettle();
+  const snapshot = elements.timelineStage.cloneNode(true);
+  snapshot.removeAttribute('id');
+  snapshot.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
+  snapshot.classList.add('family-snapshot');
+  snapshot.inert = true;
+  snapshot.setAttribute('aria-hidden', 'true');
+  elements.timelineStage.parentElement.append(snapshot);
+  familyExit = snapshot;
+  return snapshot;
+}
+
+function crossfadeFamily(snapshot) {
+  if (!snapshot) return;
+  pendingReveal = false;
+  stopSettle();
+  drawConnections();
+  const exit = snapshot.animate([{ opacity: 1 }, { opacity: 0 }], {
+    duration: MOTION.family, easing: EASE, fill: 'forwards',
+  });
+  exit.onfinish = () => { snapshot.remove(); if (familyExit === snapshot) familyExit = null; };
+  familyAnimations.push(exit);
+  [...elements.timelineGrid.children].forEach((column, index) => {
+    familyAnimations.push(column.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: MOTION.family, delay: index * MOTION.familyStep, easing: EASE, fill: 'backwards',
+    }));
+  });
 }
 
 function columnBoxes() {
@@ -304,7 +327,7 @@ function enterPage() {
   const rise = (element, delay, shift = 12) => entryAnimations.push(element.animate(
     [{ opacity: 0, transform: `translateY(${shift}px)` }, { opacity: 1, transform: 'none' }],
     { duration: MOTION.entryRise, delay, easing: EASE, fill: 'backwards' }));
-  document.querySelectorAll('.topbar, .toolbar, .timeline-heading').forEach((element, index) => rise(element, index * 40, 6));
+  document.querySelectorAll('.topbar, .toolbar').forEach((element, index) => rise(element, index * 40, 6));
   [...elements.timelineGrid.children].forEach((column, index) => {
     rise(column, index * MOTION.entryStep);
     column.querySelectorAll('.risk-focus').forEach((cell, row) => rise(cell, index * MOTION.entryStep + row * MOTION.entryCellStep, 6));
@@ -357,7 +380,6 @@ function applyEmphasis(key, mode) {
   const years = yearFilters.get(family.id);
   const lineage = getLineage(catalog, family.id, yearOf(key), idOf(key));
   const connections = visibleConnections(family, years, lineage.edges);
-  const kinds = lineageKinds(connections, key);
   const related = new Set(lineage.nodes.filter((item) => years.has(item.year) && item.key !== key).map((item) => item.key));
   const linked = related.size > 0;
   litEdges = new Set(connections.filter((edge) => edge.highlighted).map(edgeKey));
@@ -370,8 +392,6 @@ function applyEmphasis(key, mode) {
     card.classList.toggle('is-anchor', cardKey === key);
     card.classList.toggle('is-related', related.has(cardKey));
     card.classList.toggle('is-dimmed', linked && cardKey !== key && !related.has(cardKey));
-    if (kinds.has(cardKey)) card.style.setProperty('--relation-color', `var(--${kinds.get(cardKey)})`);
-    else card.style.removeProperty('--relation-color');
   }
   for (const path of connectorPaths()) {
     path.classList.toggle('is-highlighted', litEdges.has(path.dataset.edge));
@@ -436,14 +456,6 @@ function stopReveal(only) {
     reveal.path.classList.remove('is-drawing');
     reveals.delete(key);
   }
-}
-
-function renderLineageSummary(family, lineage) {
-  const path = lineagePath(lineage.nodes, yearFilters.get(family.id));
-  const { route, hidden } = formatLineagePath(path, language === 'es' ? 'en' : 'in');
-  elements.timelineHelp.replaceChildren(node('span', 'path-route', route));
-  for (const text of hidden) elements.timelineHelp.append(node('span', 'path-hidden', ` ${text}`));
-  elements.timelineHelp.title = [route, ...hidden].join(' ');
 }
 
 function rowTarget(card, key) {
@@ -744,19 +756,18 @@ function render() {
   const previous = structureSignature ? JSON.parse(structureSignature) : null;
   const yearsChanged = structure !== structureSignature && previous?.[0] === family.id && previous?.[1] === language;
   const signature = JSON.stringify([structure, currentRoute.year, currentRoute.id]);
+  const familyChanged = previous && previous[0] !== family.id;
+  const snapshot = familyChanged ? captureFamily() : null;
   renderFamilyNav();
   if (signature !== matrixSignature) {
     matrixSignature = signature;
     if (structure !== structureSignature) {
       structureSignature = structure;
       renderEditionFilter(family);
-      elements.familyDescription.textContent = family.description;
-      elements.timelineTitle.textContent = family.label;
       renderTimeline(family, yearsChanged);
     }
-    renderLineageSummary(family, lineage);
-    elements.detailTriggerLabel.textContent = `${selected.id} · ${selected.name}`;
-    applySelection(selected.key, { motion: !yearsChanged });
+    applySelection(selected.key, { motion: !yearsChanged && !familyChanged });
+    crossfadeFamily(snapshot);
   }
   if (detail) {
     renderDetail(family, selected, lineage);
@@ -789,7 +800,6 @@ elements.detailModal.addEventListener('click', (event) => {
 
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));
-elements.openDetailButton.addEventListener('click', () => openDetail());
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.search-wrap')) hideSearchResults();
 });

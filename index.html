@@ -15,10 +15,12 @@
   <a class="skip-link" href="#timeline">Saltar al explorador</a>
 
   <header class="topbar">
+    <div class="header-context">
     <a class="brand" href="#/web/2025/A01" aria-label="OWASP Evolution, inicio">
-      <span class="brand-mark" aria-hidden="true"></span>
       <span>OWASP Evolution</span>
     </a>
+    <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
+    </div>
     <div class="header-meta">
       <label class="language-control"><span class="sr-only">Idioma</span><select id="language-select"><option value="es">ES</option><option value="en">EN</option></select></label>
     </div>
@@ -26,19 +28,12 @@
 
   <main>
     <div id="matrix-page">
-    <section class="intro" aria-describedby="family-description">
-      <div class="intro-copy">
-        <p id="family-description"></p>
-      </div>
-    </section>
-
     <section class="toolbar" aria-label="Herramientas del explorador">
       <div class="search-wrap">
         <label for="risk-search">Buscar categoría, identificador o concepto</label>
         <div class="search-control">
           <svg aria-hidden="true" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"></circle><path d="m10.5 10.5 3 3"></path></svg>
-          <input id="risk-search" type="search" autocomplete="off" placeholder="Ej. acceso, inyección, LLM03">
-          <kbd>/</kbd>
+          <input id="risk-search" type="search" autocomplete="off" placeholder="Buscar categorías">
         </div>
         <div id="search-results" class="search-results" hidden></div>
       </div>
@@ -48,25 +43,10 @@
         <span><i class="legend-line line-renamed"></i><span class="legend-full">Se renombra</span><span class="legend-short">Renombra</span></span>
         <span><i class="legend-line line-merged"></i><span class="legend-full">Se fusiona / amplía</span><span class="legend-short">Fusiona</span></span>
       </div>
-      <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
     </section>
 
     <section class="explorer-shell">
       <div class="timeline-panel" id="timeline">
-        <div class="timeline-heading">
-          <div class="timeline-summary">
-            <div>
-              <h2 id="timeline-title"></h2>
-            </div>
-          </div>
-          <div class="timeline-meta">
-            <p id="timeline-help" class="timeline-help" aria-live="polite"></p>
-            <button class="detail-trigger" id="open-detail" type="button" aria-haspopup="dialog">
-              <span id="detail-trigger-label"></span>
-              <span>Ver detalle →</span>
-            </button>
-          </div>
-        </div>
         <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Matriz de evolución de categorías">
           <div class="timeline-stage" id="timeline-stage">
             <svg class="connector-layer" id="connector-layer" aria-hidden="true"></svg>
@@ -78,25 +58,11 @@
 
     </section>
 
-    <section class="method" aria-labelledby="method-title">
-      <p class="eyebrow" id="method-title">CÓMO LEER EL PROYECTO</p>
-      <div class="method-grid">
-        <p><strong>Posición</strong><span>La clasificación refleja prioridad relativa en una edición, no una puntuación universal.</span></p>
-        <p><strong>Linaje</strong><span>Una categoría puede renombrarse, ampliar su alcance, absorber otras o dividirse.</span></p>
-        <p><strong>Detalle</strong><span>Los nombres se conservan en inglés; las explicaciones y medidas están resumidas en el idioma seleccionado.</span></p>
-      </div>
-    </section>
     </div>
     <dialog class="detail-modal" id="detail-modal" aria-labelledby="detail-title">
       <article class="detail-page" id="detail-page"></article>
     </dialog>
   </main>
-
-  <footer>
-    <p class="unofficial">Proyecto educativo no oficial</p>
-    <p>Fuentes oficiales de OWASP enlazadas en cada categoría.</p>
-    <p>Actualizado con OWASP Top 10:2025 y OWASP GenAI LLM Top 10:2026.</p>
-  </footer>
 
   <script type="module" src="./src/app.js"></script>
 </body>

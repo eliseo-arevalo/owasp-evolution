@@ -13,6 +13,8 @@ export const MOTION = {
   settleShift: 3,
   settleLimit: 6,
   layout: 200,
+  family: 320,
+  familyStep: 35,
   modal: 220,
 };
 
