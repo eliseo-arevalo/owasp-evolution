@@ -9,6 +9,18 @@
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#111111">
   <title>OWASP Evolution</title>
+  <script>
+    (() => {
+      let theme = 'system';
+      try { theme = localStorage.getItem('owasp-theme') || 'system'; } catch {}
+      if (!['dark', 'light', 'system'].includes(theme)) theme = 'system';
+      document.documentElement.dataset.themePreference = theme;
+      document.documentElement.dataset.theme = theme === 'system'
+        ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
+      document.querySelector('meta[name="theme-color"]').content =
+        document.documentElement.dataset.theme === 'dark' ? '#111111' : '#f7f7f7';
+    })();
+  </script>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -22,13 +34,6 @@
     <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
     </div>
     <div class="header-meta">
-      <label class="language-control"><span class="sr-only">Idioma</span><select id="language-select"><option value="es">ES</option><option value="en">EN</option></select></label>
-    </div>
-  </header>
-
-  <main>
-    <div id="matrix-page">
-    <section class="toolbar" aria-label="Herramientas del explorador">
       <div class="search-wrap">
         <label for="risk-search">Buscar categoría, identificador o concepto</label>
         <div class="search-control">
@@ -37,6 +42,15 @@
         </div>
         <div id="search-results" class="search-results" hidden></div>
       </div>
+
+      <label class="language-control"><span aria-hidden="true">◎</span><span class="sr-only">Idioma</span><select id="language-select"><option value="es">ES</option><option value="en">EN</option></select></label>
+      <label class="theme-control"><span aria-hidden="true">◐</span><span class="sr-only" id="theme-label">Tema</span><select id="theme-select" aria-labelledby="theme-label"><option value="system">Sistema</option><option value="dark">Oscuro</option><option value="light">Claro</option></select></label>
+    </div>
+  </header>
+
+  <main>
+    <div id="matrix-page">
+    <section class="toolbar" aria-label="Herramientas del explorador">
       <fieldset class="edition-filter" id="edition-filter"><legend>Ediciones visibles</legend><div id="edition-options"></div></fieldset>
       <div class="legend" role="group" aria-label="Leyenda de relaciones">
         <span><i class="legend-line line-continues"></i><span class="legend-full">Continúa / se mueve</span><span class="legend-short">Continúa</span></span>
@@ -45,7 +59,7 @@
       </div>
     </section>
 
-    <section class="explorer-shell">
+    <section class="explorer-shell" data-dock="bottom">
       <div class="timeline-panel" id="timeline">
         <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Matriz de evolución de categorías">
           <div class="timeline-stage" id="timeline-stage">
@@ -55,13 +69,12 @@
         </div>
       </div>
 
-
+      <dialog class="detail-modal" id="detail-modal" aria-labelledby="detail-title">
+        <div class="dock-resizer" id="dock-resizer" role="separator" tabindex="0" aria-controls="timeline detail-modal" aria-label="Cambiar tamaño del panel" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="600" aria-valuenow="320"></div>
+        <article class="detail-page" id="detail-page"></article>
+      </dialog>
     </section>
-
     </div>
-    <dialog class="detail-modal" id="detail-modal" aria-labelledby="detail-title">
-      <article class="detail-page" id="detail-page"></article>
-    </dialog>
   </main>
 
   <script type="module" src="./src/app.js"></script>

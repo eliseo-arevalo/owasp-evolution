@@ -60,14 +60,11 @@ test('detail buttons and row double click open the modal', () => {
 });
 
 
-test('modal closes with Back, Escape and backdrop, and restores row focus', () => {
+test('docked detail closes with Back and Escape, and restores row focus', () => {
   assert.match(app, /close.addEventListener\('click', returnToMatrix\)/);
   assert.match(app, /detailModal.addEventListener\('cancel'/);
   assert.match(app, /event.preventDefault\(\);\s*returnToMatrix\(\)/);
   assert.match(app, /event.key === 'Escape'[\s\S]*?returnToMatrix\(\)/);
-  assert.match(app, /event.target === elements.detailModal/);
-  assert.match(app, /event.clientX < bounds.left/);
-  assert.match(app, /event.clientY > bounds.bottom/);
   assert.match(app, /const resolveDetailReturn = .*is-selected .risk-focus/);
   assert.match(app, /dismissModal\(\(\) => \{\s*scheduleFocus\(resolveDetailReturn\)/);
   assert.match(app, /modal\.close\(\);\s*done\(\);/);
@@ -90,7 +87,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: {
       matrixPage: { hidden: false },
-      detailModal: { showModal: () => calls.push('open') },
+      detailModal: { show: () => calls.push('open') },
       detailPage: { querySelector: () => ({}) },
       familyDescription: {}, timelineTitle: {}, timelineHelp: {}, detailTriggerLabel: {},
     },
@@ -99,6 +96,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     renderLineageSummary() {}, applySelection() {},
     scheduleFocus: (resolve) => calls.push(resolve() === row ? 'row focus' : 'modal focus'),
     resolveDetailReturn: () => row, scheduleConnections() {},
+    shell: { classList: { add() {} } }, updateDock() {},
     keepModal() {}, dismissModal: (done) => { calls.push('close'); done(); },
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
@@ -235,7 +233,7 @@ test('dismissModal closes after the exit animation, or at once with reduced moti
     let timer;
     const classes = new Set();
     const context = vm.createContext({
-      MOTION: { modal: 220 }, modalExit: 0,
+      MOTION: { modal: 220 }, modalExit: 0, shell: { classList: { remove() {} } },
       reducedMotion: () => reduced,
       setTimeout: (callback, ms) => { timer = { callback, ms }; return 1; },
       clearTimeout() {},

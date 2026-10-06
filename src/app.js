@@ -63,6 +63,14 @@ let settling = [];
 let layoutFrame = 0;
 let layoutEasing = false;
 let modalExit = 0;
+let dockPosition = 'bottom';
+try { dockPosition = localStorage.getItem('owasp-dock') || 'bottom'; } catch {}
+if (!['bottom', 'left', 'right'].includes(dockPosition)) dockPosition = 'bottom';
+const shell = document.querySelector('.explorer-shell');
+const resizer = document.querySelector('#dock-resizer');
+const narrowScreen = matchMedia('(max-width: 760px)');
+let dockHeight = 320;
+let dockWidth = 380;
 let maskCount = 0;
 let entryPending = true;
 let entryAnimations = [];
@@ -107,14 +115,14 @@ function returnToMatrix() {
 function renderFamilyNav() {
   if (elements.familyNav.childElementCount) {
     [...elements.familyNav.children].forEach((button) => {
-      button.textContent = catalog.families[button.dataset.family].shortLabel;
+      button.textContent = button.dataset.family === 'web' ? 'Web' : 'GenAI/LLM';
       if (button.dataset.family === currentRoute.family) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
     return;
   }
   for (const family of Object.values(catalog.families)) {
-    const button = node('button', 'family-tab', family.shortLabel);
+    const button = node('button', 'family-tab', family.id === 'web' ? 'Web' : 'GenAI/LLM');
     button.type = 'button';
     button.dataset.family = family.id;
     if (family.id === currentRoute.family) button.setAttribute('aria-current', 'page');
@@ -510,7 +518,7 @@ function renderDetail(family, risk, lineage) {
   close.type = 'button';
   close.setAttribute('aria-label', t('Volver a la matriz'));
   close.addEventListener('click', returnToMatrix);
-  top.append(code, close);
+  top.append(code, dockControl(), close);
 
   const heading = node('h1', '', risk.name);
   heading.id = 'detail-title';
@@ -716,7 +724,82 @@ function hideSearchResults() {
   elements.searchResults.hidden = true;
 }
 
-// Closing plays the entrance in reverse before the dialog leaves the top layer.
+function dockControl() {
+  const label = node('label', 'dock-control');
+  const caption = node('span', 'sr-only', language === 'es' ? 'Posición del panel' : 'Panel position');
+  const select = node('select');
+  select.id = 'dock-select';
+  for (const [value, es, en] of [['bottom', 'Abajo', 'Bottom'], ['right', 'Derecha', 'Right'], ['left', 'Izquierda', 'Left']]) {
+    const option = node('option', '', language === 'es' ? es : en);
+    option.value = value;
+    select.append(option);
+  }
+  select.value = narrowScreen.matches ? 'bottom' : dockPosition;
+  select.disabled = narrowScreen.matches;
+  select.addEventListener('change', () => {
+    dockPosition = select.value;
+    try { localStorage.setItem('owasp-dock', dockPosition); } catch {}
+    updateDock();
+  });
+  label.append(caption, select);
+  return label;
+}
+
+function updateDock() {
+  const position = narrowScreen.matches ? 'bottom' : dockPosition;
+  shell.dataset.dock = position;
+  const bottom = position === 'bottom';
+  const max = bottom ? Math.max(200, Math.floor(innerHeight * .65)) : Math.max(240, Math.floor(shell.clientWidth * .48));
+  const size = Math.min(max, bottom ? dockHeight : dockWidth);
+  shell.style.setProperty('--dock-size', `${size}px`);
+  resizer.setAttribute('aria-orientation', bottom ? 'horizontal' : 'vertical');
+  resizer.setAttribute('aria-valuemin', bottom ? '200' : '240');
+  resizer.setAttribute('aria-valuemax', String(max));
+  resizer.setAttribute('aria-valuenow', String(size));
+  resizer.setAttribute('aria-label', language === 'es' ? 'Cambiar tamaño del panel' : 'Resize panel');
+  const select = document.querySelector('#dock-select');
+  if (select) { select.disabled = narrowScreen.matches; select.value = position; }
+  scheduleConnections();
+}
+
+function resizeDock(delta) {
+  const bottom = shell.dataset.dock === 'bottom';
+  const min = bottom ? 200 : 240;
+  const max = Number(resizer.getAttribute('aria-valuemax'));
+  const size = Math.max(min, Math.min(max, Number(resizer.getAttribute('aria-valuenow')) + delta));
+  if (bottom) dockHeight = size; else dockWidth = size;
+  updateDock();
+}
+resizer.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  resizer.setPointerCapture(event.pointerId);
+  shell.classList.add('is-resizing');
+  let previous = shell.dataset.dock === 'bottom' ? event.clientY : event.clientX;
+  const move = (event) => {
+    const bottom = shell.dataset.dock === 'bottom';
+    const next = bottom ? event.clientY : event.clientX;
+    resizeDock((next - previous) * (shell.dataset.dock === 'left' ? 1 : -1));
+    previous = next;
+  };
+  const finish = () => {
+    shell.classList.remove('is-resizing');
+    resizer.removeEventListener('pointermove', move);
+    resizer.removeEventListener('lostpointercapture', finish);
+    scheduleConnections();
+  };
+  resizer.addEventListener('pointermove', move);
+  resizer.addEventListener('lostpointercapture', finish);
+});
+resizer.addEventListener('keydown', (event) => {
+  const sign = shell.dataset.dock === 'left' ? 1 : -1;
+  const bottom = shell.dataset.dock === 'bottom';
+  const direction = bottom ? { ArrowUp: 1, ArrowDown: -1 } : { ArrowLeft: -sign, ArrowRight: sign };
+  if (!direction[event.key]) return;
+  event.preventDefault();
+  resizeDock(direction[event.key] * (event.shiftKey ? 40 : 10));
+});
+
 function dismissModal(done) {
   const modal = elements.detailModal;
   const finish = () => {
@@ -724,10 +807,9 @@ function dismissModal(done) {
     modal.close();
     done();
   };
-  if (reducedMotion()) {
-    finish();
-    return;
-  }
+  shell.classList.remove('has-detail');
+  modal.inert = true;
+  if (reducedMotion()) { finish(); return; }
   modal.classList.add('is-closing');
   modalExit = setTimeout(finish, MOTION.modal);
 }
@@ -773,7 +855,10 @@ function render() {
     renderDetail(family, selected, lineage);
     if (!wasDetail) {
       keepModal();
-      if (!elements.detailModal.open) elements.detailModal.showModal();
+      if (!elements.detailModal.open) elements.detailModal.show();
+      elements.detailModal.inert = false;
+      updateDock();
+      shell.classList.add('has-detail');
       elements.detailModal.scrollTop = 0;
       scheduleFocus(() => elements.detailPage.querySelector('.detail-back'));
     }
@@ -791,13 +876,6 @@ elements.detailModal.addEventListener('cancel', (event) => {
   event.preventDefault();
   returnToMatrix();
 });
-elements.detailModal.addEventListener('click', (event) => {
-  const bounds = elements.detailModal.getBoundingClientRect();
-  if (event.target === elements.detailModal &&
-      (event.clientX < bounds.left || event.clientX > bounds.right ||
-       event.clientY < bounds.top || event.clientY > bounds.bottom)) returnToMatrix();
-});
-
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));
 document.addEventListener('click', (event) => {
@@ -858,8 +936,11 @@ elements.timelineGrid.addEventListener('focusout', (event) => {
   updateEmphasis();
 });
 window.addEventListener('hashchange', render);
-window.addEventListener('resize', scheduleConnections);
-new ResizeObserver(scheduleConnections).observe(elements.timelineStage);
+window.addEventListener('resize', updateDock);
+// ResizeObserver runs after layout and before paint, including every grid transition frame.
+new ResizeObserver(drawConnections).observe(document.querySelector('.timeline-scroll'));
+narrowScreen.addEventListener('change', updateDock);
+new ResizeObserver(drawConnections).observe(elements.timelineStage);
 
 render();
 if (entryPending) enterPage();
@@ -871,3 +952,19 @@ document.querySelector('#language-select').addEventListener('change', (event) =>
   render();
   renderSearchResults(elements.search.value);
 });
+
+const themeSelect = document.querySelector('#theme-select');
+const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(preference) {
+  document.documentElement.dataset.themePreference = preference;
+  const theme = preference === 'system' ? (systemTheme.matches ? 'dark' : 'light') : preference;
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#111111' : '#f7f7f7';
+  themeSelect.value = preference;
+}
+themeSelect.addEventListener('change', () => {
+  try { localStorage.setItem('owasp-theme', themeSelect.value); } catch {}
+  applyTheme(themeSelect.value);
+});
+systemTheme.addEventListener('change', () => applyTheme(document.documentElement.dataset.themePreference));
+applyTheme(document.documentElement.dataset.themePreference);

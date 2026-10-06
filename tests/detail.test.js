@@ -23,7 +23,7 @@ const flatten = (entry) => [entry, ...entry.children.flatMap(flatten)];
 test('detail retains every official lineage title, including isolated categories, and marks hidden years and relation strokes', () => {
   const detailPage = node('article');
   const context = { node, catalog, getEdition, relationshipLabel, relationKind, rowCues,
-    t: (text) => text, returnToMatrix() {}, elements: { detailPage },
+    t: (text) => text, dockControl: () => node('label', 'dock-control'), returnToMatrix() {}, elements: { detailPage },
     document: { createTextNode: (text) => node('text', '', text) },
     yearFilters: new Map(),
   };

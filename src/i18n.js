@@ -17,6 +17,10 @@ const ui = {
   'Matriz de evolución de categorías': 'Category evolution matrix',
   'Detalle': 'Detail',
   'Idioma': 'Language',
+  'Tema': 'Theme',
+  'Sistema': 'System',
+  'Oscuro': 'Dark',
+  'Claro': 'Light',
   'Ediciones visibles': 'Visible editions',
   '← Volver': '← Back',
   'Volver a la matriz': 'Back to matrix',
@@ -66,7 +70,7 @@ export function staticTranslator(document) {
   const walker = document.createTreeWalker(document.body, 4);
   while (walker.nextNode()) {
     const node = walker.currentNode;
-    if (node.parentElement.closest('script, select')) continue;
+    if (node.parentElement.closest('script, #language-select')) continue;
     const original = node.textContent;
     if (original.trim()) entries.push((language) => { node.textContent = original.replace(original.trim(), translate(original.trim(), language)); });
   }

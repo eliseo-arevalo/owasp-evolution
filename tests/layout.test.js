@@ -10,13 +10,13 @@ function rule(css, selector) {
   return css.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
 }
 
-test('desktop timeline is a compact fluid matrix without horizontal scrolling', async () => {
+test('timeline uses fluid columns with scrolling confined to the matrix', async () => {
   const css = await readFile(cssUrl, 'utf8');
 
   assert.match(css, /--risk-row-height:\s*clamp\(/);
-  assert.match(css, /\.explorer-shell\s*\{[^}]*display:\s*block/);
-  assert.match(rule(css, '.timeline-scroll'), /overflow:\s*visible/);
-  assert.match(rule(css, '.timeline-stage'), /min-width:\s*0/);
+  assert.match(css, /\.explorer-shell\s*\{[^}]*display:\s*grid/);
+  assert.match(rule(css, '.timeline-scroll'), /overflow:\s*auto/);
+  assert.match(rule(css, '.timeline-stage'), /min-width:\s*920px/);
   assert.match(
     rule(css, '.timeline-grid'),
     /grid-template-columns:\s*repeat\(var\(--edition-count\),\s*minmax\(0,\s*1fr\)\)/,
@@ -91,17 +91,13 @@ test('previews fade faster than commits, and drawn strokes skip the fade', async
   assert.match(rule(css, '.connector-draw'), /stroke-dasharray:\s*1 2/);
 });
 
-test('the modal rises 8px as it fades in and reverses on close, without bounce', async () => {
+test('docked detail slides in its dock direction and reverses on close', async () => {
   const css = await readFile(cssUrl, 'utf8');
-  assert.match(css, /@keyframes modal-in \{ from \{ opacity: 0; transform: translateY\(8px\); \} \}/);
-  assert.match(css, /@keyframes modal-out \{ to \{ opacity: 0; transform: translateY\(8px\); \} \}/);
-  assert.match(rule(css, '.detail-modal[open]'), /modal-in var\(--motion-modal\) var\(--ease\)/);
-  assert.match(rule(css, '.detail-modal[open]::backdrop'), /soft-in 220ms/);
-  assert.match(rule(css, '.detail-modal.is-closing'), /modal-out var\(--motion-modal\) var\(--ease-exit\) forwards/);
-  assert.match(rule(css, '.detail-modal.is-closing::backdrop'), /soft-out 220ms/);
-  // The exit curve is the entrance curve mirrored.
-  assert.match(css, /--ease:\s*cubic-bezier\(\.2, 0, 0, 1\)/);
-  assert.match(css, /--ease-exit:\s*cubic-bezier\(1, 0, \.8, 1\)/);
+  assert.match(css, /@keyframes dock-in.*transform: translate/);
+  assert.match(css, /@keyframes dock-out.*transform: translate/);
+  assert.match(rule(css, '.detail-modal[open]'), /dock-in var\(--motion-modal\)/);
+  assert.match(rule(css, '.detail-modal.is-closing'), /dock-out var\(--motion-modal\)/);
+  assert.doesNotMatch(css, /\.detail-modal::backdrop/);
 });
 
 test('chrome stays neutral: color only on connections and lineage tints', async () => {
@@ -113,7 +109,7 @@ test('chrome stays neutral: color only on connections and lineage tints', async 
     return new Set(channels).size === 1;
   };
   const colored = [...hexes].filter((hex) => !neutral(hex));
-  assert.deepEqual(colored.sort(), ['#70d6b0', '#80bfff', '#f0bd70']);
+  assert.deepEqual(colored.sort(), ['#197454', '#286ca8', '#70d6b0', '#80bfff', '#895b16', '#f0bd70']);
   for (const selector of ['.risk-detail', '.detail-trigger', '.source-link', '.family-tab', '.edition-status']) {
     assert.doesNotMatch(rule(css, selector), /--continues|--renamed|--merged/);
   }
@@ -128,21 +124,15 @@ test('legend sits beside the edition filter and stays visible, compact, on narro
   assert.doesNotMatch(css, /\.legend\s*\{\s*display:\s*none/);
 });
 
-test('category details are a centered reading modal over the visible matrix', async () => {
+test('detail is a docked reading panel in the matrix layout with inner scroll', async () => {
   const [css, html] = await Promise.all([readFile(cssUrl, 'utf8'), readFile(htmlUrl, 'utf8')]);
-  assert.match(rule(css, '.detail-modal'), /max-width:\s*760px/);
-  assert.match(rule(css, '.detail-modal'), /margin:\s*auto/);
-  assert.match(rule(css, '.detail-modal'), /max-height:\s*calc/);
+  assert.match(rule(css, '.detail-modal'), /position:\s*relative/);
   assert.match(rule(css, '.detail-modal'), /overflow:\s*hidden/);
   assert.match(rule(css, '.detail-body'), /overflow-y:\s*auto/);
-  assert.match(rule(css, '.detail-page'), /max-height:\s*inherit/);
-  assert.match(rule(css, '.detail-header'), /flex:\s*none/);
-  assert.match(rule(css, '.detail-modal::backdrop'), /background:\s*rgb\(0 0 0 \/ 80%\)/);
-  assert.match(rule(css, 'body.detail-open'), /overflow:\s*hidden/);
-  assert.match(html, /<div id="matrix-page">/);
-  assert.match(html, /<dialog[^>]*id="detail-modal"[^>]*aria-labelledby="detail-title"/);
-  assert.doesNotMatch(html, /id="open-detail"/);
-  assert.doesNotMatch(html, /<aside/);
+  assert.match(html, /class="explorer-shell"[\s\S]*<dialog[^>]*id="detail-modal"[\s\S]*<\/dialog>[\s\S]*<\/section>/);
+  assert.match(css, /grid-template-rows: minmax\(0, 1fr\) var\(--dock-size\)/);
+  assert.match(css, /grid-template-columns: var\(--dock-size\) minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) var\(--dock-size\)/);
 });
 
 test('primary family selector follows the title, with fixed secondary filter geometry', async () => {
@@ -150,7 +140,8 @@ test('primary family selector follows the title, with fixed secondary filter geo
   const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
   const toolbar = html.slice(html.indexOf('class="toolbar"'), html.indexOf('class="explorer-shell"'));
   assert.match(header, /OWASP Evolution[\s\S]*id="family-nav"/);
-  for (const id of ['risk-search', 'edition-options']) assert.ok(toolbar.includes(`id="${id}"`));
+  for (const id of ['risk-search', 'language-select', 'theme-select']) assert.ok(header.includes(`id="${id}"`));
+  assert.ok(toolbar.includes('id="edition-options"'));
   assert.doesNotMatch(toolbar, /id="family-nav"/);
   assert.match(css, /#edition-options \{[^}]*height: 28px;[^}]*flex-wrap: nowrap/);
   assert.doesNotMatch(html, /family-description|timeline-heading|<footer|class="method"|<kbd|brand-mark/);
