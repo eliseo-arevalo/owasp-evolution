@@ -430,12 +430,12 @@ function renderDetail(family, risk, lineage) {
   const top = node('div', 'detail-top');
   const code = node('div', 'detail-code');
   code.append(node('span', '', `${risk.id} · ${risk.year}`));
-  if (edition.status === t('Vigente')) code.append(node('span', 'detail-current', t('Vigente')));
+  code.append(node('span', 'detail-current', edition.status));
   const close = node('button', 'detail-back', t('← Volver'));
   close.type = 'button';
   close.setAttribute('aria-label', t('Volver a la matriz'));
   close.addEventListener('click', returnToMatrix);
-  top.append(close, code);
+  top.append(code, close);
 
   const heading = node('h1', '', risk.name);
   heading.id = 'detail-title';
@@ -450,19 +450,35 @@ function renderDetail(family, risk, lineage) {
   const history = node('section', 'detail-section');
   history.append(node('h2', '', t('Linaje en el tiempo')));
   const historyList = node('ol', 'lineage-list');
+  const visibleYears = yearFilters.get(family.id);
+  const cues = rowCues(family, new Set(family.editions.map((item) => item.year)));
   for (const item of lineage.nodes) {
     const entry = node('li', 'lineage-item');
+    if (!visibleYears.has(item.year)) entry.classList.add('is-hidden-year');
     const year = node('span', 'lineage-year', String(item.year));
-    const copy = node('span');
-    copy.append(node('strong', '', `${item.id} · ${item.name}`));
-    copy.append(node('span', '', item.change || t('Sin cambio documentado')));
+    const copy = node('div', 'lineage-copy');
+    const title = node('strong', 'lineage-title');
+    title.append(node('span', 'lineage-id', item.id), document.createTextNode(` · ${item.name}`));
+    copy.append(title);
+    const incoming = lineage.edges.filter((edge) => edge.to === item.key);
+    for (const edge of incoming) {
+      const relation = node('div', 'lineage-relation');
+      const stroke = node('span', `legend-line line-${relationKind(edge.type)}`);
+      stroke.setAttribute('aria-hidden', 'true');
+      relation.append(stroke, node('span', '', t(relationshipLabel(edge.type))));
+      copy.append(relation);
+    }
+    if (!incoming.length) {
+      copy.append(node('p', 'lineage-note', `${t('Nueva en')} ${item.year}`));
+    }
+    const leaves = cues.get(item.key)?.leaves;
+    if (leaves) copy.append(node('p', 'lineage-note', `${t('Sale en')} ${leaves}`));
+    const newNote = `${t('Nueva en')} ${item.year}`;
+    if (item.change && (incoming.length || item.change !== newNote)) {
+      copy.append(node('p', 'lineage-note', item.change));
+    }
     entry.append(year, copy);
     historyList.append(entry);
-  }
-  if (lineage.nodes.length === 1) {
-    const entry = node('li', 'lineage-item');
-    entry.append(node('span', 'lineage-year', String(risk.year)), node('span', '', risk.change || t('Categoría sin predecesor o sucesor directo en las ediciones incluidas.')));
-    historyList.replaceChildren(entry);
   }
   history.append(historyList);
 
@@ -486,7 +502,11 @@ function renderDetail(family, risk, lineage) {
   source.rel = 'noopener noreferrer';
   linkSection.append(source);
 
-  elements.detailPage.append(top, heading, summary, prevention, history, relations, linkSection);
+  const header = node('header', 'detail-header');
+  header.append(top, heading, summary);
+  const body = node('div', 'detail-body');
+  body.append(prevention, history, relations, linkSection);
+  elements.detailPage.append(header, body);
 
 }
 

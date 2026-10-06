@@ -41,6 +41,8 @@ const ui = {
   'Categoría sin predecesor o sucesor directo en las ediciones incluidas.': 'Category with no direct predecessor or successor in the included editions.',
   'Relaciones': 'Relationships',
   'No hay una relación directa documentada en las ediciones incluidas.': 'No direct relationship is documented in the included editions.',
+  'Nueva en': 'New in',
+  'Sale en': 'Leaves in',
   'Abrir fuente oficial ↗': 'Open official source ↗',
   'No se encontraron categorías.': 'No categories found.',
   'Continúa': 'Continues',

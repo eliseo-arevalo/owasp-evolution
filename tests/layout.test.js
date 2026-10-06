@@ -133,7 +133,10 @@ test('category details are a centered reading modal over the visible matrix', as
   assert.match(rule(css, '.detail-modal'), /max-width:\s*760px/);
   assert.match(rule(css, '.detail-modal'), /margin:\s*auto/);
   assert.match(rule(css, '.detail-modal'), /max-height:\s*calc/);
-  assert.match(rule(css, '.detail-modal'), /overflow-y:\s*auto/);
+  assert.match(rule(css, '.detail-modal'), /overflow:\s*hidden/);
+  assert.match(rule(css, '.detail-body'), /overflow-y:\s*auto/);
+  assert.match(rule(css, '.detail-page'), /max-height:\s*inherit/);
+  assert.match(rule(css, '.detail-header'), /flex:\s*none/);
   assert.match(rule(css, '.detail-modal::backdrop'), /background:\s*rgb\(0 0 0 \/ 80%\)/);
   assert.match(rule(css, 'body.detail-open'), /overflow:\s*hidden/);
   assert.match(html, /<div id="matrix-page">/);
