@@ -101,3 +101,12 @@ test('columns kept across a year change ease from their old slot; new columns ha
   assert.equal(deltas.has(2017), false);
   assert.equal(layoutDeltas(after, after).size, 0);
 });
+
+test('page entry finishes under 1.2 seconds, including cell and connector staggers', () => {
+  for (const family of Object.values(catalog.families)) {
+    const lastColumn = family.editions.length - 1;
+    const lastRow = Math.max(...family.editions.map((edition) => edition.items.length)) - 1;
+    assert.ok(lastColumn * MOTION.entryStep + lastRow * MOTION.entryCellStep + MOTION.entryRise < 1200);
+    assert.ok(MOTION.entryConnectors + Math.max(0, lastColumn - 1) * MOTION.entryStep + MOTION.draw < 1200);
+  }
+});

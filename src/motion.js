@@ -2,6 +2,10 @@ import { yearOf } from './editions.js';
 
 // Script-driven timings; styles.css holds the matching transition durations.
 export const MOTION = {
+  entryRise: 320,
+  entryStep: 65,
+  entryCellStep: 18,
+  entryConnectors: 500,
   draw: 300, // one connector drawing along its path
   drawStep: 60, // each edition further from the selected year starts one step later
   settle: 200,

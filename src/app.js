@@ -72,6 +72,8 @@ let layoutFrame = 0;
 let layoutEasing = false;
 let modalExit = 0;
 let maskCount = 0;
+let entryPending = true;
+let entryAnimations = [];
 const reveals = new Map();
 const connectorDefs = document.createElementNS(SVG_NS, 'defs');
 elements.connectorLayer.prepend(connectorDefs);
@@ -158,6 +160,8 @@ function riskCues(cue) {
 }
 
 function renderTimeline(family, ease = false) {
+  for (const animation of entryAnimations) animation.cancel();
+  entryAnimations = [];
   const years = yearFilters.get(family.id);
   const editions = visibleEditions(family, years);
   const cues = rowCues(family, years);
@@ -166,13 +170,40 @@ function renderTimeline(family, ease = false) {
   layoutEasing = false;
   stopReveal();
   stopSettle();
-  elements.timelineGrid.replaceChildren();
+  const existing = ease ? new Map([...elements.timelineGrid.children].map((column) => [Number(column.dataset.year), column])) : new Map();
+  if (!ease) elements.timelineGrid.replaceChildren();
+  for (const [year, column] of existing) {
+    if (years.has(year)) continue;
+    if (reducedMotion()) { column.remove(); continue; }
+    const box = column.getBoundingClientRect();
+    const stage = elements.timelineStage.getBoundingClientRect();
+    column.classList.add('is-leaving');
+    Object.assign(column.style, { position: 'absolute', left: `${box.left - stage.left}px`, top: `${box.top - stage.top}px`, width: `${box.width}px`, transform: '', zIndex: '3', pointerEvents: 'none' });
+    column.inert = true;
+    elements.timelineStage.append(column);
+    const exit = column.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(8px)' }], { duration: MOTION.layout, easing: EASE, fill: 'forwards' });
+    exit.onfinish = () => column.remove();
+  }
   elements.timelineGrid.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.dataset.editions = String(editions.length);
   hoverKey = null;
   focusKey = null;
 
   for (const edition of editions) {
+    const retained = existing.get(edition.year);
+    if (retained) {
+      retained.style.transform = '';
+      for (const card of retained.querySelectorAll('.risk-card')) {
+        const cue = cues.get(card.dataset.key);
+        card.querySelector('.risk-cues')?.remove();
+        const marks = riskCues(cue);
+        if (marks) card.querySelector('.risk-focus').append(marks);
+        const risk = edition.items.find((item) => item.id === idOf(card.dataset.key));
+        const label = `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${edition.year}`;
+        card.querySelector('.risk-focus').setAttribute('aria-label', [label, ...cueDescriptions(cue)].join(', '));
+      }
+      continue;
+    }
     const column = node('section', 'edition-column');
     column.dataset.year = String(edition.year);
     column.setAttribute('aria-labelledby', `edition-${family.id}-${edition.year}`);
@@ -216,6 +247,12 @@ function renderTimeline(family, ease = false) {
     elements.timelineGrid.append(column);
   }
 
+  // Insert only new columns in chronological order; retained nodes never detach.
+  editions.forEach((edition, index) => {
+    const column = elements.timelineGrid.querySelector(`[data-year="${edition.year}"]`);
+    const slot = elements.timelineGrid.children[index];
+    if (slot !== column) elements.timelineGrid.insertBefore(column, slot ?? null);
+  });
   activeEdges = visibleConnections(family, years);
   if (before) easeColumns(before);
   else scheduleConnections();
@@ -229,31 +266,51 @@ function columnBoxes() {
   }));
 }
 
-// Columns kept across a year change glide from their old slot while connectors are redrawn
-// from the same transformed boxes each frame, so lines and columns never drift apart.
-// Measuring waits for the first frame (still before paint) so selection classes land first
-// and rebuilt rows do not replay their selection motion.
+// Invert synchronously before paint. Every frame measures the transformed cards,
+// keeping the same SVG paths attached to the moving columns.
 function easeColumns(before) {
   const columns = [...elements.timelineGrid.children];
+  const deltas = layoutDeltas(before, columnBoxes());
+  for (const column of columns) {
+    const delta = deltas.get(Number(column.dataset.year));
+    column.style.transform = delta ? `translate(${delta.x}px, ${delta.y}px)` : '';
+    if (!before.has(Number(column.dataset.year))) column.animate(
+      [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }],
+      { duration: MOTION.layout, easing: EASE });
+  }
   layoutEasing = true;
-  layoutFrame = requestAnimationFrame((start) => {
-    const deltas = layoutDeltas(before, columnBoxes());
+  drawConnections();
+  let start;
+  const frame = (now) => {
+    start ??= now;
+    const t = Math.min(1, (now - start) / MOTION.layout);
+    const remaining = 1 - easeOut(t);
     for (const column of columns) {
-      if (!before.has(Number(column.dataset.year))) column.animate([{ opacity: 0 }], { duration: MOTION.layout, easing: EASE });
+      const delta = deltas.get(Number(column.dataset.year));
+      column.style.transform = delta && remaining ? `translate(${delta.x * remaining}px, ${delta.y * remaining}px)` : '';
     }
-    const frame = (now) => {
-      const t = Math.min(1, (now - start) / MOTION.layout);
-      const remaining = 1 - easeOut(t);
-      for (const column of columns) {
-        const delta = deltas.get(Number(column.dataset.year));
-        column.style.transform = delta && remaining ? `translate(${delta.x * remaining}px, ${delta.y * remaining}px)` : '';
-      }
-      drawConnections();
-      layoutEasing = t < 1;
-      layoutFrame = layoutEasing ? requestAnimationFrame(frame) : 0;
-    };
-    frame(start);
+    drawConnections();
+    layoutEasing = t < 1;
+    layoutFrame = layoutEasing ? requestAnimationFrame(frame) : 0;
+  };
+  layoutFrame = requestAnimationFrame(frame);
+}
+
+function enterPage() {
+  entryPending = false;
+  if (reducedMotion()) return;
+  stopSettle();
+  pendingReveal = false;
+  const rise = (element, delay, shift = 12) => entryAnimations.push(element.animate(
+    [{ opacity: 0, transform: `translateY(${shift}px)` }, { opacity: 1, transform: 'none' }],
+    { duration: MOTION.entryRise, delay, easing: EASE, fill: 'backwards' }));
+  document.querySelectorAll('.topbar, .toolbar, .timeline-heading').forEach((element, index) => rise(element, index * 40, 6));
+  [...elements.timelineGrid.children].forEach((column, index) => {
+    rise(column, index * MOTION.entryStep);
+    column.querySelectorAll('.risk-focus').forEach((cell, row) => rise(cell, index * MOTION.entryStep + row * MOTION.entryCellStep, 6));
   });
+  drawConnections();
+  revealLineage(true);
 }
 
 // Selection only moves classes and the Detail button, so rows and connectors can transition.
@@ -340,14 +397,14 @@ function stopSettle() {
 
 // A committed lineage draws outward from the selected year; unrelated connectors only fade.
 // Dashed strokes keep their pattern because the draw runs on a solid mask, not the stroke.
-function revealLineage() {
+function revealLineage(entry = false) {
   stopReveal();
   if (reducedMotion() || layoutEasing || emphasisKey() !== selectedKey) return;
-  const lit = activeEdges.filter((edge) => litEdges.has(edgeKey(edge)));
+  const lit = entry ? activeEdges : activeEdges.filter((edge) => litEdges.has(edgeKey(edge)));
   const plan = drawPlan(lit, yearFilters.get(currentRoute.family), yearOf(selectedKey));
   for (const path of connectorPaths()) {
     const key = path.dataset.edge;
-    const step = plan.get(key);
+    const step = entry ? { delay: MOTION.entryConnectors + [...yearFilters.get(currentRoute.family)].sort((a, b) => a - b).indexOf(yearOf(key.split('>')[0])) * MOTION.entryStep, reverse: false } : plan.get(key);
     if (!step) continue;
     const mask = document.createElementNS(SVG_NS, 'mask');
     const stroke = document.createElementNS(SVG_NS, 'path');
@@ -533,8 +590,8 @@ function drawConnections() {
   svg.setAttribute('height', height);
 
   // Paths are reused and only moved when their order changes, so running fades are kept.
-  const previous = new Map([...connectorPaths()].map((path) => [path.dataset.edge, path]));
-  const cards = new Map([...stage.querySelectorAll('.risk-card')].map((card) => [card.dataset.key, card]));
+  const previous = new Map([...connectorPaths()].filter((path) => path.dataset.edge).map((path) => [path.dataset.edge, path]));
+  const cards = new Map([...elements.timelineGrid.querySelectorAll('.risk-card')].map((card) => [card.dataset.key, card]));
   const ordered = [...activeEdges]
     .filter((edge) => cards.has(edge.from) && cards.has(edge.to))
     .sort((a, b) => Number(litEdges.has(edgeKey(a))) - Number(litEdges.has(edgeKey(b))));
@@ -543,7 +600,11 @@ function drawConnections() {
     if (kept.has(key)) continue;
     stopReveal(key);
     stale.hitArea.remove();
-    stale.remove();
+    if (layoutEasing && !reducedMotion()) {
+      stale.removeAttribute('data-edge');
+      const fade = stale.animate([{ opacity: getComputedStyle(stale).opacity }, { opacity: 0 }], { duration: MOTION.layout, fill: 'forwards' });
+      fade.onfinish = () => stale.remove();
+    } else stale.remove();
   }
 
   let cursor = connectorDefs.nextSibling;
@@ -791,6 +852,7 @@ window.addEventListener('resize', scheduleConnections);
 new ResizeObserver(scheduleConnections).observe(elements.timelineStage);
 
 render();
+if (entryPending) enterPage();
 
 document.querySelector('#language-select').addEventListener('change', (event) => {
   language = event.target.value;
