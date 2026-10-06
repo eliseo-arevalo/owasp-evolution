@@ -1,63 +1,39 @@
-# OWASP Evolution Explorer
+# OWASP Evolution
 
-Explorador estático e interactivo para entender cómo evolucionan las categorías de riesgo de OWASP a través del tiempo.
+Explorador estático bilingüe de OWASP Top 10 Web (2013–2025) y GenAI/LLM (2025–2026). Conserva nombres oficiales, linaje, búsqueda, exportación, temas, menús y panel de detalle acoplable. Sin framework ni dependencias de ejecución.
 
-## Incluye
+## Construir y verificar
 
-- OWASP Top 10 Web: 2013, 2017, 2021 y 2025.
-- OWASP Top 10 para GenAI/LLM: 2025 y 2026.
-- Filtro de ediciones generado desde el catálogo; Web muestra 2017, 2021 y 2025 por defecto, con 2013 disponible al activarla.
-- Idioma español/inglés con elección manual persistente.
-- Conexiones siempre visibles y linaje seleccionado resaltado.
-- Linaje por categoría: continuidad, movimiento, renombre, fusión, ampliación y consolidación.
-- Búsqueda tolerante a acentos por identificador, nombre y explicación.
-- Vista detallada con resumen, prevención, relaciones y fuente oficial.
-- Rutas compartibles mediante hash, por ejemplo `#/web/2025/A01`.
-- Diseño responsive sin dependencias de ejecución ni servicios de backend.
-
-## Desarrollo
-
-```bash
+```sh
+npm run build
 npm test
-npm run build
 npm start
+MOTION_PLAYWRIGHT=/ruta/a/playwright/index.mjs npm test -- --test-concurrency=1
 ```
 
-La aplicación se sirve en `http://127.0.0.1:4173` y el artefacto publicable queda en `dist/`.
+Node genera `dist/`; `npm start` lo sirve en el puerto 4173. `SITE_URL` define el origen público del build; por defecto se usa `homepage` de package.json. Publicar el contenido completo de `dist/` en cualquier servidor estático con soporte para índices de directorio. No se necesitan rewrites. Configurar `404.html` como documento de error y compresión HTTP; HTML debe revalidarse y los assets con hash pueden cachearse durante un año como immutable.
 
-## Estructura
+## Rutas y SEO
 
-- `src/data.js`: catálogo, explicaciones, prevención, enlaces y relaciones.
-- `src/model.js`: búsqueda, rutas, consulta y cálculo de linaje.
-- `src/app.js`: interfaz y conexiones visuales.
-- `tests/model.test.js`: pruebas del modelo de datos.
-- `styles.css`: sistema visual y responsive.
-- `scripts/build.js`: generación de `dist/`.
+`/` es español y `/en/` inglés. Familias: `/web/`, `/genai/` y sus equivalentes ingleses. Ejemplo: `/web/2025/a01-broken-access-control/`. Cada ruta tiene su propio `index.html` con descripción, prevención, linaje y enlaces oficiales legibles sin JavaScript. Los hashes históricos se convierten mediante replaceState; la navegación usa pushState y soporta Atrás/Adelante. El idioma de la URL prevalece sobre preferencias guardadas.
 
-## Actualizar una edición
+Cada página incluye título, descripción, canonical, alternates es/en/x-default, Open Graph, Twitter y datos estructurados. Sitemap, robots y documentos llms se generan desde el catálogo. Cuatro PNG sociales de 1200×630, por familia e idioma, tienen sus fuentes SVG en assets. Se usan imágenes comunes porque Node no incluye un rasterizador SVG; el build no exige instalar un navegador ni un conversor. Los PNG se distribuyen como assets reproducibles desde los SVG con cualquier rasterizador.
 
-1. Añadir la edición y sus diez categorías en `src/data.js`.
-2. Añadir únicamente relaciones con la edición inmediatamente anterior.
-3. Usar nombres y fuentes oficiales de OWASP.
-4. Añadir traducciones de los nuevos textos a `src/translations-en.js`. Una edición nueva aparece en el filtro automáticamente; `hiddenByDefault: true` la oculta inicialmente.
-5. Ejecutar `npm run check`.
-6. Revisar visualmente escritorio y móvil.
+El worker opcional delega en el servicio de archivos estáticos y no detecta idioma ni reescribe HTML. La detección geográfica anterior contradecía las URLs canónicas. `npm run build:worker` genera su módulo; el hosting estático es suficiente. El manifiesto aporta iconos PNG/SVG y modo standalone; no hay service worker.
 
-## Despliegue en Cloudflare Pages
+## Estructura y contenido
 
-```bash
-npm run build
-npx --yes wrangler pages deploy dist --project-name=owasp-evolution
-```
+- `src/data.js`: catálogo, resúmenes, prevención, relaciones y fuentes oficiales.
+- `src/translations-en.js`, `src/i18n.js`: traducciones del contenido y la interfaz.
+- `src/model.js`, `src/routes.js`: consultas, linaje y rutas públicas.
+- `src/app.js`, `src/motion.js`: interfaz, movimiento y navegación.
+- `scripts/build.js`, `scripts/seo.js`: prerender, compactación y nombres de assets con hash.
+- `tests/`: pruebas unitarias y suites opcionales de Chrome.
 
-## Fuentes y precisión
+Para añadir una edición, incorporar sus diez categorías y relaciones con la edición anterior, fuentes oficiales y traducciones. Ejecutar las pruebas y revisar ambos idiomas, temas, escritorio y móvil. Las ediciones nuevas aparecen automáticamente en el filtro; `hiddenByDefault` controla su visibilidad inicial.
 
-El contenido factual enlaza exclusivamente a sitios y repositorios oficiales de OWASP. Las explicaciones y medidas preventivas están resumidas en español e inglés; se conservan los nombres oficiales de categorías en inglés. OWASP Top 10 describe categorías de riesgo, no un inventario exhaustivo de vulnerabilidades.
+Los datos enlazan a documentación y repositorios oficiales de OWASP. Las explicaciones y prevención son resúmenes educativos, no citas literales ni un inventario exhaustivo de vulnerabilidades. Este proyecto no está afiliado oficialmente con OWASP Foundation.
 
-Este proyecto es educativo y no está afiliado oficialmente con OWASP Foundation.
+## Licencia
 
-## Idioma y comprobación local
-
-El Worker generado con `npm run build:worker` detecta primero `CF-IPCountry`: países hispanohablantes → español, otros códigos → inglés. Sin ese header, usa `Accept-Language`. Inyecta la detección en el HTML y varía la respuesta por ambos headers, sin servicios externos. En un servidor estático como `npm start`, se usa `navigator.language`. La selección manual del menú Idioma prevalece y persiste en `localStorage`; si el almacenamiento está bloqueado, el cambio funciona durante la sesión.
-
-En `http://127.0.0.1:4173`, activar/desactivar ediciones, seleccionar categorías y comprobar que las otras conexiones siguen visibles. Probar también solo 2017 y 2025 para ver conexiones a través de 2021 oculto. Cambiar idioma, abrir detalles, buscar y recargar para comprobar la persistencia. La última edición visible no puede desactivarse. Una búsqueda o enlace directo a un año oculto lo activa para mostrar el resultado.
+Código bajo MIT, véase LICENSE. Las fuentes y denominaciones OWASP pertenecen a sus titulares.
