@@ -42,7 +42,7 @@ test('secondary text is at least 11px', async () => {
 
 test('unrelated connectors recede to a thin stroke and dimmed rows use quiet text', async () => {
   const css = await readFile(cssUrl, 'utf8');
-  const dimmed = rule(css, '.has-lineage .connector-layer > path');
+  const dimmed = rule(css, '.has-lineage .connector-layer > path:not(.connector-hit)');
   const opacity = Number(dimmed.match(/opacity:\s*([\d.]+)/)[1]);
   assert.ok(opacity >= .15 && opacity <= .2);
   assert.match(dimmed, /stroke-width:\s*1;/);
@@ -83,9 +83,9 @@ test('the selection bar grows from the top of the row and clears at once', async
 
 test('previews fade faster than commits, and drawn strokes skip the fade', async () => {
   const css = await readFile(cssUrl, 'utf8');
-  assert.match(rule(css, '.connector-layer > path'), /transition:\s*opacity var\(--motion\)/);
-  assert.match(css, /\.is-previewing \.connector-layer > path,\s*\.is-previewing \.risk-card\s*\{\s*transition-duration:\s*var\(--motion-fast\)/);
-  assert.match(rule(css, '.connector-layer > path.is-drawing'), /transition:\s*none/);
+  assert.match(rule(css, '.connector-layer > path:not(.connector-hit)'), /transition:\s*opacity var\(--motion\)/);
+  assert.match(css, /\.is-previewing \.connector-layer > path:not\(\.connector-hit\),\s*\.is-previewing \.risk-card\s*\{\s*transition-duration:\s*var\(--motion-fast\)/);
+  assert.match(rule(css, '.connector-layer > path:not(.connector-hit).is-drawing'), /transition:\s*none/);
   // The draw mask lives inside the SVG, so connector styles must target direct children only.
   assert.doesNotMatch(css, /\.connector-layer path/);
   assert.match(rule(css, '.connector-draw'), /stroke-dasharray:\s*1 2/);

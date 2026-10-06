@@ -75,7 +75,7 @@ let maskCount = 0;
 const reveals = new Map();
 const connectorDefs = document.createElementNS(SVG_NS, 'defs');
 elements.connectorLayer.prepend(connectorDefs);
-const connectorPaths = () => elements.connectorLayer.querySelectorAll(':scope > path');
+const connectorPaths = () => elements.connectorLayer.querySelectorAll(':scope > path:not(.connector-hit)');
 const reducedMotion = () => prefersReducedMotion(window);
 const emphasisKey = () => hoverKey ?? focusKey ?? selectedKey;
 const resolveDetailReturn = () => elements.timelineStage.querySelector('.is-selected .risk-focus');
@@ -260,6 +260,8 @@ function easeColumns(before) {
 function applySelection(key, { motion = true } = {}) {
   const committed = motion && key !== selectedKey;
   selectedKey = key;
+  hoverKey = null;
+  focusKey = null;
   for (const card of elements.timelineGrid.querySelectorAll('.risk-card')) {
     const selected = card.dataset.key === key;
     const button = card.querySelector('.risk-focus');
@@ -540,6 +542,7 @@ function drawConnections() {
   for (const [key, stale] of previous) {
     if (kept.has(key)) continue;
     stopReveal(key);
+    stale.hitArea.remove();
     stale.remove();
   }
 
@@ -562,12 +565,37 @@ function drawConnections() {
       path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('class', relationKind(edge.type));
       path.dataset.edge = key;
+      const hit = document.createElementNS(SVG_NS, 'path');
+      hit.setAttribute('class', 'connector-hit');
+      hit.setAttribute('aria-hidden', 'true');
+      hit.dataset.key = edge.to;
+      path.hitArea = hit;
+      hit.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'touch') return;
+        hoverKey = edge.to;
+        updateEmphasis();
+      });
+      hit.addEventListener('pointerleave', () => {
+        hoverKey = null;
+        updateEmphasis();
+      });
+      hit.addEventListener('click', (event) => {
+        if (event.detail > 1) return;
+        navigate({ family: currentRoute.family, year: yearOf(edge.to), id: idOf(edge.to) });
+      });
+      hit.addEventListener('dblclick', () => {
+        // Resolve the clicked endpoint even if hashchange has not rendered yet.
+        currentRoute = { family: currentRoute.family, year: yearOf(edge.to), id: idOf(edge.to) };
+        openDetail();
+      });
     }
     path.setAttribute('d', d);
+    path.hitArea.setAttribute('d', d);
     reveals.get(key)?.stroke.setAttribute('d', d);
     path.classList.toggle('is-highlighted', litEdges.has(key));
     if (path === cursor) cursor = cursor.nextSibling;
     else svg.insertBefore(path, cursor);
+    svg.append(path.hitArea);
     if (created && layoutEasing && !reducedMotion()) path.animate([{ opacity: 0 }], { duration: MOTION.layout, easing: EASE });
   }
   if (pendingReveal) {

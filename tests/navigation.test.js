@@ -206,7 +206,7 @@ test('only a committed selection draws and settles; previews only fade', () => {
 });
 
 test('hover leaving a row, even into a gap, returns to the committed selection', () => {
-  const over = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("addEventListener('pointerleave'"));
+  const over = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("elements.timelineGrid.addEventListener('pointerleave'"));
   assert.match(over, /closest\('\.risk-card'\)\?\.dataset\.key \?\? null/);
   assert.doesNotMatch(over, /if \(!key/);
 });

@@ -375,30 +375,30 @@ kbd {
   overflow: visible;
   pointer-events: none;
 }
-.connector-layer > path {
+.connector-layer > path:not(.connector-hit) {
   fill: none;
   stroke: var(--continues);
   stroke-width: 1;
   opacity: .45;
   transition: opacity var(--motion) var(--ease), stroke-width var(--motion) var(--ease);
 }
-.connector-layer > path.renamed {
+.connector-layer > path:not(.connector-hit).renamed {
   stroke: var(--renamed);
   stroke-dasharray: 5 5;
 }
-.connector-layer > path.merged {
+.connector-layer > path:not(.connector-hit).merged {
   stroke: var(--merged);
   stroke-dasharray: 2 5;
   stroke-linecap: round;
 }
 /* With a lineage in focus, everything else recedes to a thin, quiet stroke. */
-.has-lineage .connector-layer > path { opacity: .18; stroke-width: 1; }
-.connector-layer > path.is-highlighted { opacity: 1; stroke-width: 2.4; }
+.has-lineage .connector-layer > path:not(.connector-hit) { opacity: .18; stroke-width: 1; }
+.connector-layer > path:not(.connector-hit).is-highlighted { opacity: 1; stroke-width: 2.4; }
 /* Hover and focus preview is lighter than a commit: a quick fade and never a draw. */
-.is-previewing .connector-layer > path,
+.is-previewing .connector-layer > path:not(.connector-hit),
 .is-previewing .risk-card { transition-duration: var(--motion-fast); }
 /* A committed lineage appears through its draw, so those strokes skip the fade. */
-.connector-layer > path.is-drawing { transition: none; }
+.connector-layer > path:not(.connector-hit).is-drawing { transition: none; }
 /* The draw runs on a solid mask so dashed and dotted strokes keep their pattern. */
 .connector-draw {
   fill: none;
@@ -406,7 +406,16 @@ kbd {
   stroke-width: 8;
   stroke-dasharray: 1 2;
 }
+/* Invisible solid strokes stay hittable across dashed lines and draw masks. */
+.connector-layer > .connector-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+  cursor: pointer;
+}
 .timeline-grid {
+  pointer-events: none;
   position: relative;
   z-index: 2;
   display: grid;
@@ -415,6 +424,7 @@ kbd {
   align-items: start;
 }
 .edition-column {
+  pointer-events: auto;
   width: 100%;
   max-width: 260px;
   justify-self: center;
@@ -464,7 +474,7 @@ kbd {
 }
 .risk-card:last-child { border-bottom: 0; }
 .risk-card:hover { --row-bg: var(--surface-hover); }
-.risk-card.is-related { --row-bg: color-mix(in srgb, var(--relation-color, var(--ink)) 8%, var(--surface)); }
+.risk-card.is-related { --row-bg: color-mix(in srgb, var(--ink) 8%, var(--surface)); }
 .risk-card.is-anchor { --row-bg: color-mix(in srgb, var(--ink) 10%, var(--surface)); }
 .risk-card.is-dimmed { color: var(--quiet); }
 .risk-card::before {
