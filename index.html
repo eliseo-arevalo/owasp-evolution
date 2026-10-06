@@ -12,6 +12,18 @@
   <script>
     (() => {
       document.documentElement.classList.add('js', 'booting');
+      if (typeof location !== 'undefined' && (/\/\d{4}\//.test(location.pathname) || /\/detalle$/.test(location.hash))) {
+        const root = document.documentElement;
+        let dock = { side: 'left', width: 380 };
+        try {
+          dock = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}').desktop || { ...dock, side: localStorage.getItem('owasp-dock') || 'left' };
+        } catch {}
+        if (!matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 900px)').matches && ['left', 'right'].includes(dock.side)) {
+          root.dataset.initialDetail = 'true';
+          root.dataset.initialDock = dock.side;
+          root.style.setProperty('--initial-dock-size', `${Number(dock.width) > 0 ? Number(dock.width) : 380}px`);
+        }
+      }
       let theme = 'system';
       try { theme = localStorage.getItem('owasp-theme') || 'system'; } catch {}
       if (!['dark', 'light', 'system'].includes(theme)) theme = 'system';

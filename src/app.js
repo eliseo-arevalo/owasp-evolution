@@ -45,6 +45,9 @@ const elements = {
 };
 
 let currentRoute = routeFrom(location.pathname, catalog, location.hash);
+if (/\/\d{4}\//.test(location.pathname) && !location.hash.startsWith('#/')) {
+  history.replaceState({ ...history.state, route: currentRoute }, '', location.href);
+}
 let activeEdges = [];
 let litEdges = new Set();
 let drawFrame = 0;
@@ -1132,7 +1135,8 @@ document.querySelector('#language-select').addEventListener('click', (event) => 
   if (!event.target.dataset.language) return;
   language = event.target.dataset.language;
   saveLanguagePreference(window, language);
-  history.pushState({ route: currentRoute }, '', pathFor(currentRoute, sourceCatalog, language));
+  const languageRoute = /^(?:\/en)?\/$/.test(location.pathname) ? null : /\/\d{4}\//.test(location.pathname) ? currentRoute : { family: currentRoute.family };
+  history.pushState({ route: currentRoute }, '', pathFor(languageRoute, sourceCatalog, language));
   catalog = localizeCatalog(sourceCatalog, language);
   render();
   renderSearchResults(elements.search.value);
@@ -1184,7 +1188,7 @@ exportMenu.addEventListener('click', async (event) => {
       blob = new Blob([content], { type: format === 'csv' ? 'text/csv;charset=utf-8' : format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8' });
     }
     download(blob, exportFilename(family.id, years, format));
-  } catch (error) {
+  } catch {
     document.querySelector('#export-status').textContent = t('No se pudo exportar. Inténtalo de nuevo.');
   }
 });

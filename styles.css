@@ -853,12 +853,23 @@ h1, h2, h3, p { text-wrap: pretty; }
 #prerender { max-width: 960px; margin: 2rem auto; padding: 1rem; line-height: 1.6; }
 #prerender a { color: var(--ink); text-decoration: underline; }
 @media print {
-  .topbar, .toolbar, .connector-layer, .dock-resizer, .detail-back, .detail-close { display: none !important; }
+  :root { --ink: #000; --muted: #222; --quiet: #333; --faint: #444; --page: #fff; --surface: #fff; }
+  a { color: #000 !important; text-decoration: underline; }
+  .explorer-shell { display: block; height: auto !important; }
+  .detail-open .timeline-panel { display: none; }
+  .detail-page { height: auto !important; overflow: visible !important; }
+  .topbar, .toolbar, .connector-layer, .dock-resizer, .detail-back { display: none !important; }
   body, .detail-modal { background: white !important; color: black !important; }
-  .detail-modal { position: static !important; width: auto !important; height: auto !important; overflow: visible !important; }
+  .detail-modal { position: static !important; width: auto !important; height: auto !important; max-height: none !important; overflow: visible !important; }
 }
 
 .js #prerender { display: none; }
 
 html:not(.js) #matrix-page, html:not(.js) .header-meta { display: none; }
 .booting .explorer-shell { transition: none; }
+
+/* Reserve the desktop deep-link panel before module hydration paints the matrix. */
+.booting[data-initial-detail='true'] .explorer-shell { grid-template-rows: minmax(0, 1fr); }
+.booting[data-initial-dock='left'] .explorer-shell { grid-template-columns: clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)) minmax(0, 1fr); }
+.booting[data-initial-dock='left'] .timeline-panel { grid-column: 2; }
+.booting[data-initial-dock='right'] .explorer-shell { grid-template-columns: minmax(0, 1fr) clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)); }
