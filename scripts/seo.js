@@ -1,69 +1,51 @@
+import { readFileSync } from 'node:fs';
 import { catalog } from '../src/data.js';
-
-const description = 'Proyecto que documenta la evolución de las categorías del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.';
-const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-})[char]);
-
-// Site-relative URLs keep the generated documents independent of the host.
+import { localizeCatalog, translate } from '../src/i18n.js';
+import { pathFor } from '../src/routes.js';
+import { getLineage } from '../src/model.js';
+const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function generateSeo(data = catalog) {
+  const origin = new URL(process.env.SITE_URL || JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).homepage).origin;
+  const shell = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const files = new Map();
-  const urls = ['/', '/llms.txt'];
-  const full = ['# OWASP Evolution', '', description, ''];
-
-  for (const [familyId, family] of Object.entries(data.families)) {
-    full.push(`## ${family.label}`, '');
-    for (const edition of family.editions) {
-      full.push(`### ${edition.label}`, `Año: ${edition.year}`, '');
-      for (const item of edition.items) {
-        const route = `/${familyId}/${edition.year}/${item.id}/`;
-        const interactive = `/#/${familyId}/${edition.year}/${item.id}`;
-        const title = `${item.id}: ${item.name} · ${edition.year} · OWASP Evolution`;
-        const summary = item.summary || `${item.name}, categoría ${item.id} de ${edition.label}.`;
-        urls.push(route);
-        full.push(`#### ${item.id}: ${item.name}`, `Identificador: ${item.id}`,
-          `Nombre oficial: ${item.name}`, `Año: ${edition.year}`,
-          ...(item.summary ? [`Resumen: ${item.summary}`] : []),
-          `URL de la ficha: ${route}`, `Fuente oficial: ${item.source}`, '');
-        files.set(`${route.slice(1)}index.html`, `<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escape(title)}</title>
-  <meta name="description" content="${escape(summary)}">
-</head>
-<body>
-  <main>
-    <p>${escape(family.label)} · ${escape(edition.year)} · ${escape(item.id)}</p>
-    <h1>${escape(item.name)}</h1>
-    ${item.summary ? `<p>${escape(item.summary)}</p>` : ''}
-    <nav aria-label="Enlaces de la categoría">
-      <p><a href="${escape(interactive)}">Ver categoría en el explorador interactivo</a></p>
-      <p><a href="${escape(item.source)}">Fuente oficial de OWASP</a></p>
-      <p><a href="/">Inicio de OWASP Evolution</a></p>
-    </nav>
-  </main>
-</body>
-</html>
-`);
+  const pages = [];
+  const full = ['# OWASP Evolution'];
+  for (const language of ['es', 'en']) {
+    const localized = localizeCatalog(data, language);
+    const t = text => translate(text, language);
+    const definitions = [{ route: null }];
+    for (const family of Object.values(localized.families)) {
+      definitions.push({ route: { family: family.id }, family });
+      for (const edition of family.editions) for (const item of edition.items) definitions.push({route:{family:family.id,year:edition.year,id:item.id}, family, edition, item});
+    }
+    for (const {route, family, edition, item} of definitions) {
+      const path = pathFor(route, data, language);
+      const title = item ? `${item.id}: ${item.name} · ${edition.year} · ${language.toUpperCase()} · OWASP Evolution` : family ? `${family.label} · ${language.toUpperCase()} · OWASP Evolution` : `OWASP Evolution · ${language === 'es' ? 'Evolución de riesgos' : 'Risk evolution'}`;
+      const description = item ? `${item.id} (${edition.year}): ${item.summary}` : family ? family.description : t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.');
+      const alternates = ['es','en'].map(lang => `<link rel="alternate" hreflang="${lang}" href="${origin}${pathFor(route,data,lang)}">`).join('\n') + `\n<link rel="alternate" hreflang="x-default" href="${origin}${pathFor(route,data,'es')}">`;
+      let content = `<h1>${escape(item ? `${item.id}: ${item.name} · ${edition.year}` : title)}</h1><p>${escape(description)}</p>`;
+      if (item) {
+        const lineage = getLineage(localized, family.id, edition.year, item.id);
+        content += `<h2>${t('Prevención prioritaria')}</h2><ul>${item.prevention.map(p=>`<li>${escape(p)}</li>`).join('')}</ul><h2>${t('Linaje en el tiempo')}</h2><ol>${lineage.nodes.map(n=>`<li><a href="${pathFor({family:family.id,year:n.year,id:n.id},data,language)}">${n.year} · ${n.id}: ${escape(n.name)}</a> ${escape(n.change)}</li>`).join('')}</ol><ul>${lineage.edges.map(e=>`<li>${escape(e.from)} → ${escape(e.to)}: ${escape(e.note)}</li>`).join('')}</ul><a href="${escape(item.source)}">${t('Abrir fuente oficial ↗')}</a>`;
+      } else {
+        for (const f of family ? [family] : Object.values(localized.families)) content += `<h2><a href="${pathFor({family:f.id},data,language)}">${escape(f.label)}</a></h2>${f.editions.map(e=>`<h3>${escape(e.label)}</h3><ul>${e.items.map(i=>`<li><a href="${pathFor({family:f.id,year:e.year,id:i.id},data,language)}">${i.id}: ${escape(i.name)}</a></li>`).join('')}</ul>`).join('')}`;
       }
+      const breadcrumbs = [{ '@type':'ListItem',position:1,name:'OWASP Evolution',item:origin+pathFor(null,data,language)}];
+      if(family) breadcrumbs.push({'@type':'ListItem',position:2,name:family.label,item:origin+pathFor({family:family.id},data,language)});
+      if(item) breadcrumbs.push({'@type':'ListItem',position:3,name:`${item.id}: ${item.name} (${edition.year})`,item:origin+path});
+      const structured = item ? [{'@context':'https://schema.org','@type':'DefinedTerm',name:item.name,termCode:item.id,description:item.summary,url:origin+path,inDefinedTermSet:item.source}, {'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:breadcrumbs}] : {'@context':'https://schema.org','@type':family?'CollectionPage':'WebSite',name:title,url:origin+path,inLanguage:language};
+      const image = `${origin}/assets/og-${family?.id || 'web'}-${language}.png`;
+      let html = shell.replace('<html lang="es">',`<html lang="${language}">`).replace(/  <meta name="description"[^\n]*\n|  <meta property="og:[^\n]*\n|  <title>.*?<\/title>\n/g,'');
+      html = html.replace('</head>',`<title>${escape(title)}</title><meta name="description" content="${escape(description)}"><link rel="canonical" href="${origin}${path}">${alternates}<meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta property="og:url" content="${origin}${path}"><meta property="og:type" content="${item?'article':'website'}"><meta property="og:image" content="${image}"><meta property="og:image:alt" content="OWASP Evolution"><meta name="twitter:image:alt" content="OWASP Evolution"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:description" content="${escape(description)}"><meta name="twitter:image" content="${image}"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="icon" sizes="32x32" href="/assets/icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-180.png"><link rel="manifest" href="/manifest.webmanifest"><script type="application/ld+json">${JSON.stringify(structured).replace(/</g,'\\u003c')}</script></head>`);
+      html = html.replace('<main>', `<main><article id="prerender">${content}</article><noscript><p>${language==='es'?'Activa JavaScript para usar el explorador interactivo.':'Enable JavaScript to use the interactive explorer.'}</p></noscript>`).replaceAll('href="./styles.css"','href="/styles.css"').replaceAll('src="./src/app.js"','src="/src/app.js"');
+      if(language==='en') html=html.replace(/>([^<>]+)</g,(match,text)=>t(text.trim()) === text.trim() ? match : `>${escape(t(text.trim()))}<`).replace(/(aria-label|placeholder)="([^"]+)"/g,(_,key,text)=>`${key}="${escape(t(text))}"`);
+      files.set(`${path.slice(1)}index.html`,html); pages.push({path,route}); full.push(`## ${title}`,description, ...(item?.prevention || []),`URL: ${origin}${path}`,item?.source || '', ...(item ? getLineage(localized, family.id, edition.year, item.id).nodes.map(n => `${n.year} · ${n.id}: ${n.name} — ${n.change || ''}`) : []));
     }
   }
-
-  files.set('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((url) => `  <url><loc>${escape(url)}</loc></url>`).join('\n')}
-</urlset>
-`);
-  files.set('llms.txt', `# OWASP Evolution
-
-> ${description}
-
-## Documentación completa
-
-- [Contenido completo en texto](/llms-full.txt): Familias, ediciones y categorías con nombres oficiales, resúmenes, fichas y fuentes de OWASP.
-`);
-  files.set('llms-full.txt', `${full.join('\n')}\n`);
+  files.set('sitemap.xml',`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">${pages.map(({path,route})=>`<url><loc>${origin}${path}</loc>${['es','en','x-default'].map(l=>`<xhtml:link rel="alternate" hreflang="${l}" href="${origin}${pathFor(route,data,l==='x-default'?'es':l)}"/>`).join('')}</url>`).join('')}</urlset>`);
+  files.set('robots.txt',`User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
+  files.set('llms.txt',`# OWASP Evolution\n\nBilingual OWASP risk evolution explorer.\n\n- [Full reference](${origin}/llms-full.txt)\n- [Spanish](${origin}/)\n- [English](${origin}/en/)\n`);
+  files.set('llms-full.txt',full.join('\n\n'));
+  files.set('404.html',`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>404 · OWASP Evolution</title><link rel="stylesheet" href="/styles.css"><main style="padding:4rem"><h1>404</h1><p>Página no encontrada / Page not found</p><a href="/">Inicio</a> · <a href="/en/">Home</a></main></html>`);
   return files;
 }

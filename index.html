@@ -11,6 +11,7 @@
   <title>OWASP Evolution</title>
   <script>
     (() => {
+      document.documentElement.classList.add('js', 'booting');
       let theme = 'system';
       try { theme = localStorage.getItem('owasp-theme') || 'system'; } catch {}
       if (!['dark', 'light', 'system'].includes(theme)) theme = 'system';
@@ -21,6 +22,7 @@
         document.documentElement.dataset.theme === 'dark' ? '#111111' : '#f7f7f7';
     })();
   </script>
+  <link rel="preload" href="/assets/fonts/Geist-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -28,7 +30,7 @@
 
   <header class="topbar">
     <div class="header-context">
-    <a class="brand" href="#/web/2025/A01" aria-label="OWASP Evolution, inicio">
+    <a class="brand" href="/" aria-label="OWASP Evolution, inicio">
       <span>OWASP Evolution</span>
     </a>
     <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
@@ -73,6 +75,7 @@
   </header>
 
   <main>
+    <h1 class="sr-only" id="explorer-heading">OWASP Evolution</h1>
     <div id="matrix-page">
     <section class="toolbar" aria-label="Herramientas del explorador">
       <fieldset class="edition-filter" id="edition-filter"><legend>Ediciones</legend><div id="edition-options"></div><span id="edition-feedback" class="edition-feedback" role="status"></span></fieldset>
@@ -84,7 +87,7 @@
     </section>
 
     <section class="explorer-shell" data-dock="bottom">
-      <div class="timeline-panel" id="timeline">
+      <div class="timeline-panel" id="timeline" tabindex="-1">
         <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Matriz de evolución de categorías">
           <div class="timeline-stage" id="timeline-stage">
             <svg class="connector-layer" id="connector-layer" aria-hidden="true"></svg>

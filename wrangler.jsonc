@@ -2,6 +2,8 @@
   "name": "owasp-evolution",
   "compatibility_date": "2026-10-01",
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "main": "worker-dist/worker.js"
 }

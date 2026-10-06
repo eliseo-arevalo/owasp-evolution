@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { pathFor } from '../src/routes.js';
+import { catalog } from '../src/data.js';
 import { formatRoute } from '../src/model.js';
 
 const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
@@ -12,7 +14,7 @@ function setup() {
   const context = vm.createContext({
     location: { hash: '#/llm/2026/LLM03' },
     currentRoute: { family: 'llm', year: 2026, id: 'LLM03' },
-    matrixReturnHash: null,
+    matrixReturnHash: null, pathFor, catalog, language: 'es',
     window: { scrollY: 230 }, elements: { openDetailButton: {} }, formatRoute,
     render: () => renders++,
     history: {
@@ -29,14 +31,14 @@ function setup() {
 test('single row selection navigates to a matrix route', () => {
   const { context } = setup();
   vm.runInContext("navigate({family: 'web', year: 2025, id: 'A02'});", context);
-  assert.equal(context.location.hash, '#/web/2025/A02');
+  assert.equal(context.location.hash, pathFor({family:'web',year:2025,id:'A02'},catalog));
 });
 
 test('opening the modal saves the matrix hash; returning uses history', () => {
   const { context, renders, backs } = setup();
   vm.runInContext('openDetail();', context);
-  assert.equal(context.location.hash, '#/llm/2026/LLM03/detalle');
-  assert.equal(context.matrixReturnHash, '#/llm/2026/LLM03');
+  assert.equal(context.location.hash, pathFor(context.currentRoute,catalog));
+  assert.equal(context.matrixReturnHash, '/genai/');
   assert.equal(renders(), 1);
   vm.runInContext('returnToMatrix();', context);
   assert.equal(backs(), 1);
@@ -47,7 +49,7 @@ test('shared detail links return to their category without going to another webs
   context.currentRoute.detail = true;
   context.location.hash += '/detalle';
   vm.runInContext('returnToMatrix();', context);
-  assert.equal(context.location.hash, '#/llm/2026/LLM03');
+  assert.equal(context.location.hash, '/genai/');
   assert.equal(backs(), 0);
 });
 
@@ -101,6 +103,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     keepModal() {}, dismissModal: (done) => { calls.push('close'); done(); },
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
+  Object.assign(context, { updateMetadata() {}, languageOf: () => context.language, localizeCatalog: () => context.catalog, sourceCatalog: {}, routeFrom: () => context.resolveRouteState().route, history: { state: null, replaceState() {} }, pathFor: () => '/' });
   vm.runInContext(renderSource + '\nrender();', context);
   assert.deepEqual(calls, ['matrix', 'detail', 'open', 'modal focus']);
   assert.equal(context.elements.matrixPage.hidden, false);
@@ -131,6 +134,7 @@ test('selecting another row keeps the matrix and only moves the selection', () =
     applySelection: (key) => calls.push(`select ${key}`),
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
+  Object.assign(context, { updateMetadata() {}, languageOf: () => context.language, localizeCatalog: () => context.catalog, sourceCatalog: {}, routeFrom: () => context.resolveRouteState().route, history: { state: null, replaceState() {} }, pathFor: () => '/' });
   vm.runInContext(renderSource + '\nrender();', context);
   route = { family: 'web', year: 2025, id: 'A05' };
   vm.runInContext('render();', context);
@@ -170,6 +174,7 @@ function renderHarness(route) {
     applySelection: (key, { motion }) => calls.push(`select ${key} motion=${motion}`),
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
+  Object.assign(context, { updateMetadata() {}, languageOf: () => context.language, localizeCatalog: () => context.catalog, sourceCatalog: {}, routeFrom: () => context.resolveRouteState().route, history: { state: null, replaceState() {} }, pathFor: () => '/' });
   vm.runInContext(renderSource, context);
   return { context, calls };
 }

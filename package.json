@@ -10,8 +10,15 @@
     "start": "npm run build && python3 -m http.server 4173 -d dist",
     "check": "npm test && node scripts/worker-bundle.js"
   },
-  "keywords": ["owasp", "security", "appsec", "llm", "genai"],
+  "keywords": [
+    "owasp",
+    "security",
+    "appsec",
+    "llm",
+    "genai"
+  ],
   "author": "Eliseo Arévalo",
   "license": "MIT",
-  "type": "module"
+  "type": "module",
+  "homepage": "https://owasp-evolution.vercel.app"
 }

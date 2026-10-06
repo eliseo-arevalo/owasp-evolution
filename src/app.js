@@ -1,6 +1,7 @@
+import { pathFor, routeFrom, languageOf } from './routes.js';
 import { menuButton } from './menu.js';
 import { exportFilename, exportCSV, exportJSON, exportMarkdown, matrixSVG, pngBlob, download } from './export.js';
-import { detectLanguage, readLanguagePreference, saveLanguagePreference } from './locale.js';
+import { saveLanguagePreference } from './locale.js';
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
 import {
   defaultVisibleYears,
@@ -20,17 +21,11 @@ import {
   getRisk,
   getEdition,
   getLineage,
-  formatRoute,
-  resolveRouteState,
   relationshipLabel,
 } from './model.js';
 
 const applyStaticLanguage = staticTranslator(document);
-const serverLanguage = document.querySelector('meta[name="owasp-language"]')?.content;
-let language = detectLanguage({
-  savedLanguage: readLanguagePreference(window),
-  browserLanguage: ['en', 'es'].includes(serverLanguage) ? serverLanguage : navigator.language,
-});
+let language = languageOf(location.pathname);
 let catalog = localizeCatalog(sourceCatalog, language);
 const t = (text) => translate(text, language);
 const yearFilters = new Map(Object.values(catalog.families).map((family) => [family.id, new Set(defaultVisibleYears(family))]));
@@ -49,7 +44,7 @@ const elements = {
   searchResults: document.querySelector('#search-results'),
 };
 
-let currentRoute = resolveRouteState(location.hash, catalog).route;
+let currentRoute = routeFrom(location.pathname, catalog, location.hash);
 let activeEdges = [];
 let litEdges = new Set();
 let drawFrame = 0;
@@ -112,14 +107,13 @@ function node(tag, className, text) {
 }
 
 function navigate(route) {
-  const nextHash = formatRoute(route);
-  if (location.hash === nextHash) render();
-  else location.hash = nextHash;
+  history.pushState({ route }, '', pathFor(route, catalog, language));
+  render();
 }
 
 function openDetail() {
-  matrixReturnHash = formatRoute({ ...currentRoute, detail: false });
-  history.pushState({ matrixReturnHash }, '', formatRoute({ ...currentRoute, detail: true }));
+  matrixReturnHash = pathFor({ family: currentRoute.family }, catalog, language);
+  history.pushState({ matrixReturnHash }, '', pathFor(currentRoute, catalog, language));
   render();
 }
 
@@ -127,7 +121,7 @@ function returnToMatrix() {
   if (matrixReturnHash && history.state?.matrixReturnHash === matrixReturnHash) {
     history.back();
   } else {
-    history.replaceState(null, '', formatRoute({ ...currentRoute, detail: false }));
+    history.replaceState({ route: { ...currentRoute, detail: false } }, '', pathFor({ family: currentRoute.family }, catalog, language));
     render();
   }
 }
@@ -227,7 +221,7 @@ function renderTimeline(family, ease = false) {
     column.setAttribute('aria-labelledby', `edition-${family.id}-${edition.year}`);
 
     const header = node('header', 'edition-header');
-    const year = node('h3', 'edition-year', String(edition.year));
+    const year = node('h2', 'edition-year', String(edition.year));
     year.id = `edition-${family.id}-${edition.year}`;
     header.append(year);
 
@@ -972,10 +966,42 @@ function keepModal() {
   elements.detailModal.classList.remove('is-closing');
 }
 
+function updateMetadata(family, selected) {
+  const category = /\/\d{4}\//.test(location.pathname);
+  const isHome = location.pathname === '/' || location.pathname === '/en/';
+  const route = category ? currentRoute : isHome ? null : { family: family.id };
+  const origin = new URL(document.querySelector('link[rel="canonical"]').href).origin;
+  const title = category ? `${selected.id}: ${selected.name} · ${selected.year} · ${language.toUpperCase()} · OWASP Evolution` : isHome ? `OWASP Evolution · ${language === 'es' ? 'Evolución de riesgos' : 'Risk evolution'}` : `${family.label} · ${language.toUpperCase()} · OWASP Evolution`;
+  const description = category ? `${selected.id} (${selected.year}): ${selected.summary}` : isHome ? t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.') : family.description;
+  document.title = title;
+  document.querySelector('link[rel="canonical"]').href = origin + pathFor(route, sourceCatalog, language);
+  for (const link of document.querySelectorAll('link[hreflang]')) link.href = origin + pathFor(route, sourceCatalog, link.hreflang === 'en' ? 'en' : 'es');
+  for (const [selector, content] of [
+    ['meta[name="description"]', description], ['meta[property="og:title"]', title], ['meta[name="twitter:title"]', title],
+    ['meta[property="og:description"]', description], ['meta[name="twitter:description"]', description],
+    ['meta[property="og:url"]', origin + pathFor(route, sourceCatalog, language)],
+    ['meta[property="og:image"]', `${origin}/assets/og-${family.id}-${language}.png`],
+    ['meta[name="twitter:image"]', `${origin}/assets/og-${family.id}-${language}.png`],
+  ]) document.querySelector(selector).content = content;
+  const structured = category ? [
+    { '@context': 'https://schema.org', '@type': 'DefinedTerm', name: selected.name, termCode: selected.id, description: selected.summary, url: origin + pathFor(route, sourceCatalog, language), inDefinedTermSet: selected.source },
+    { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'OWASP Evolution', item: origin + pathFor(null, sourceCatalog, language) },
+      { '@type': 'ListItem', position: 2, name: family.label, item: origin + pathFor({ family: family.id }, sourceCatalog, language) },
+      { '@type': 'ListItem', position: 3, name: `${selected.id}: ${selected.name} (${selected.year})`, item: origin + pathFor(route, sourceCatalog, language) },
+    ] },
+  ] : { '@context': 'https://schema.org', '@type': isHome ? 'WebSite' : 'CollectionPage', name: title, url: origin + pathFor(route, sourceCatalog, language), inLanguage: language };
+  document.querySelector('script[type="application/ld+json"]').textContent = JSON.stringify(structured);
+  document.querySelector('meta[property="og:type"]').content = category ? 'article' : 'website';
+  elements.brand.href = language === 'en' ? '/en/' : '/';
+}
+
 function render() {
-  const routeState = resolveRouteState(location.hash, catalog);
-  currentRoute = routeState.route;
-  if (routeState.changed) history.replaceState(history.state, '', routeState.canonicalHash);
+  language = languageOf(location.pathname);
+  catalog = localizeCatalog(sourceCatalog, language);
+  currentRoute = location.hash.startsWith('#/') ? routeFrom(location.pathname, catalog, location.hash) : history.state?.route || routeFrom(location.pathname, catalog);
+  if (location.hash.startsWith('#/')) history.replaceState({ route: currentRoute }, '', pathFor(currentRoute, catalog, language));
+  document.querySelector('#prerender')?.remove?.();
   const family = catalog.families[currentRoute.family];
   yearFilters.get(family.id).add(currentRoute.year);
   const risk = getRisk(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
@@ -1024,7 +1050,7 @@ function render() {
   }
   if (detail !== wasDetail) updateEmphasis();
   wasDetail = detail;
-  document.title = `${selected.id} ${selected.name} · OWASP Evolution`;
+  updateMetadata(family, selected);
 }
 
 elements.detailModal.addEventListener('cancel', (event) => {
@@ -1091,6 +1117,7 @@ elements.timelineGrid.addEventListener('focusout', (event) => {
   updateEmphasis();
 });
 window.addEventListener('hashchange', render);
+window.addEventListener('popstate', render);
 window.addEventListener('resize', updateDock);
 // ResizeObserver runs after layout and before paint, including every grid transition frame.
 new ResizeObserver(drawConnections).observe(document.querySelector('.timeline-scroll'));
@@ -1098,12 +1125,14 @@ narrowScreen.addEventListener('change', updateDock);
 new ResizeObserver(drawConnections).observe(elements.timelineStage);
 
 render();
+requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('booting')));
 if (entryPending) enterPage();
 
 document.querySelector('#language-select').addEventListener('click', (event) => {
   if (!event.target.dataset.language) return;
   language = event.target.dataset.language;
   saveLanguagePreference(window, language);
+  history.pushState({ route: currentRoute }, '', pathFor(currentRoute, sourceCatalog, language));
   catalog = localizeCatalog(sourceCatalog, language);
   render();
   renderSearchResults(elements.search.value);
@@ -1157,6 +1186,7 @@ exportMenu.addEventListener('click', async (event) => {
     download(blob, exportFilename(family.id, years, format));
   } catch (error) {
     document.querySelector('#export-status').textContent = t('No se pudo exportar. Inténtalo de nuevo.');
-    console.error(error);
   }
 });
+
+elements.brand.addEventListener('click', event => { event.preventDefault(); history.pushState(null, '', language === 'en' ? '/en/' : '/'); render(); });

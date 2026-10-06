@@ -1,6 +1,7 @@
 import { english } from './translations-en.js';
 
 const ui = {
+  'Cambiar tamaño del panel': 'Resize panel',
   'Exportar': 'Export',
   'Markdown · detalle': 'Markdown · detail',
   'No se pudo exportar. Inténtalo de nuevo.': 'Export failed. Please try again.',
@@ -72,17 +73,19 @@ export function localizeCatalog(catalog, language) {
 // Capture static copy once, before the application creates dynamic content.
 export function staticTranslator(document) {
   const entries = [];
+  const reverse = new Map(Object.entries({ ...english, ...ui }).map(([source, translated]) => [translated, source]));
   const walker = document.createTreeWalker(document.body, 4);
   while (walker.nextNode()) {
     const node = walker.currentNode;
-    if (node.parentElement.closest('script, #language-select')) continue;
-    const original = node.textContent;
+    if (node.parentElement.closest('script, #language-select, #prerender, noscript')) continue;
+    const original = node.textContent.replace(node.textContent.trim(), reverse.get(node.textContent.trim()) ?? node.textContent.trim());
     if (original.trim()) entries.push((language) => { node.textContent = original.replace(original.trim(), translate(original.trim(), language)); });
   }
   for (const element of document.querySelectorAll('[aria-label], [placeholder], meta[name="description"]')) {
     for (const attribute of ['aria-label', 'placeholder', 'content']) {
       if (!element.hasAttribute(attribute)) continue;
-      const original = element.getAttribute(attribute);
+      const value = element.getAttribute(attribute);
+      const original = reverse.get(value) ?? value;
       entries.push((language) => element.setAttribute(attribute, translate(original, language)));
     }
   }
