@@ -16,7 +16,7 @@ test('timeline uses fluid columns with scrolling confined to the matrix', async 
   assert.match(css, /--risk-row-height:\s*clamp\(/);
   assert.match(css, /\.explorer-shell\s*\{[^}]*display:\s*grid/);
   assert.match(rule(css, '.timeline-scroll'), /overflow:\s*auto/);
-  assert.match(rule(css, '.timeline-stage'), /min-width:\s*920px/);
+  assert.match(rule(css, '.timeline-stage'), /min-width:\s*calc\(var\(--edition-count/);
   assert.match(
     rule(css, '.timeline-grid'),
     /grid-template-columns:\s*repeat\(var\(--edition-count\),\s*minmax\(0,\s*1fr\)\)/,
@@ -143,6 +143,6 @@ test('primary family selector follows the title, with fixed secondary filter geo
   for (const id of ['risk-search', 'language-select', 'theme-select']) assert.ok(header.includes(`id="${id}"`));
   assert.ok(toolbar.includes('id="edition-options"'));
   assert.doesNotMatch(toolbar, /id="family-nav"/);
-  assert.match(css, /#edition-options \{[^}]*height: 28px;[^}]*flex-wrap: nowrap/);
+  assert.match(css, /#edition-options \{[^}]*height: 32px;[^}]*flex-wrap: nowrap/);
   assert.doesNotMatch(html, /family-description|timeline-heading|<footer|class="method"|<kbd|brand-mark/);
 });

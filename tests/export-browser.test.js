@@ -55,7 +55,8 @@ test('Chrome downloads all formats and renders standalone images at desktop and 
           if (format === 'svg') {
             assert.ok(data.toString().includes('2025</text>'));
             assert.ok(data.toString().includes('Broken Access Control'));
-            assert.ok(data.toString().includes(width === 390 ? 'unofficial project' : 'proyecto no oficial'));
+            assert.ok(data.toString().includes('OWASP Evolution · OWASP Top 10'));
+          assert.doesNotMatch(data.toString(), /unofficial project|proyecto no oficial/);
           }
         }
       }

@@ -185,6 +185,7 @@ function renderTimeline(family, ease = false) {
     const exit = column.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(8px)' }], { duration: MOTION.layout, easing: EASE, fill: 'forwards' });
     exit.onfinish = () => column.remove();
   }
+  elements.timelineStage.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.dataset.editions = String(editions.length);
   hoverKey = null;
@@ -333,9 +334,13 @@ function enterPage() {
   if (reducedMotion()) return;
   stopSettle();
   pendingReveal = false;
-  const rise = (element, delay, shift = 12) => entryAnimations.push(element.animate(
-    [{ opacity: 0, transform: `translateY(${shift}px)` }, { opacity: 1, transform: 'none' }],
-    { duration: MOTION.entryRise, delay, easing: EASE, fill: 'backwards' }));
+  const rise = (element, delay, shift = 12) => {
+    const animation = element.animate(
+      [{ opacity: 0, transform: `translateY(${shift}px)` }, { opacity: 1, transform: 'none' }],
+      { duration: MOTION.entryRise, delay, easing: EASE, fill: 'backwards' });
+    if (element.classList.contains('edition-column')) animation.onfinish = drawConnections;
+    entryAnimations.push(animation);
+  };
   document.querySelectorAll('.topbar, .toolbar').forEach((element, index) => rise(element, index * 40, 6));
   [...elements.timelineGrid.children].forEach((column, index) => {
     rise(column, index * MOTION.entryStep);
@@ -487,23 +492,34 @@ function renderEditionFilter(family) {
   options.replaceChildren();
   const years = yearFilters.get(family.id);
   for (const edition of family.editions) {
-    const label = node('label');
-    const input = node('input');
-    input.type = 'checkbox';
-    input.checked = years.has(edition.year);
-    input.disabled = input.checked && years.size === 1;
-    input.addEventListener('change', () => {
-      if (input.checked) years.add(edition.year);
-      else years.delete(edition.year);
+    const button = node('button', 'edition-toggle', String(edition.year));
+    button.type = 'button';
+    button.dataset.year = edition.year;
+    button.setAttribute('aria-pressed', String(years.has(edition.year)));
+    button.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const buttons = [...options.children];
+      const index = buttons.indexOf(button);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next].focus();
+    });
+    button.addEventListener('click', () => {
+      const feedback = document.querySelector('#edition-feedback');
+      if (years.has(edition.year) && years.size === 1) {
+        feedback.textContent = t('Mantén al menos una edición visible.');
+        return;
+      }
+      feedback.textContent = '';
+      if (years.has(edition.year)) years.delete(edition.year);
+      else years.add(edition.year);
       if (!years.has(currentRoute.year)) {
         const replacement = visibleEditions(family, years).at(-1);
         navigate({ family: family.id, year: replacement.year, id: replacement.items[0].id });
       } else render();
-      scheduleFocus(() => document.querySelector(`#edition-options input[value="${edition.year}"]`));
+      scheduleFocus(() => document.querySelector(`#edition-options button[data-year="${edition.year}"]`));
     });
-    input.value = edition.year;
-    label.append(input, node('span', '', String(edition.year)));
-    options.append(label);
+    options.append(button);
   }
 }
 

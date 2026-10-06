@@ -74,7 +74,7 @@ export function matrixSVG(stage, language) {
       }
     }
   }
-  parts.push('</g>', `<text x="16" y="${height - 14}" fill="${xml(rootStyle.getPropertyValue('--muted').trim())}" font-family="Arial, Helvetica, sans-serif" font-size="11">${language === 'en' ? 'OWASP Evolution · unofficial project · data from OWASP Top 10' : 'OWASP Evolution · proyecto no oficial · datos de OWASP Top 10'}</text>`, '</svg>');
+  parts.push('</g>', `<text x="16" y="${height - 14}" fill="${xml(rootStyle.getPropertyValue('--muted').trim())}" font-family="Arial, Helvetica, sans-serif" font-size="11">OWASP Evolution · OWASP Top 10</text>`, '</svg>');
   return { svg: parts.join(''), width, height };
 }
 export async function pngBlob({ svg, width, height }) {

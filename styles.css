@@ -255,7 +255,7 @@ h1, h2, h3, p { text-wrap: pretty; }
 .timeline-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 8px; }
 .timeline-stage {
   position: relative;
-  min-width: 920px;
+  min-width: calc(var(--edition-count, 3) * 180px + (var(--edition-count, 3) - 1) * 44px);
   width: 100%;
 }
 .connector-layer {
@@ -312,7 +312,9 @@ h1, h2, h3, p { text-wrap: pretty; }
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(var(--edition-count), minmax(0, 1fr));
-  column-gap: clamp(44px, 6vw, 90px);
+  column-gap: clamp(44px, 6cqw, 90px);
+  max-width: calc(var(--edition-count) * 260px + (var(--edition-count) - 1) * clamp(44px, 6cqw, 90px));
+  margin-inline: auto;
   align-items: start;
 }
 .edition-column {
@@ -695,13 +697,16 @@ h1, h2, h3, p { text-wrap: pretty; }
 .language-control select:focus-visible,
 #edition-options input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.edition-filter { min-width: 0; margin: 0; padding: 0; border: 0; font-size: 11px; color: var(--muted); }
-.edition-filter legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-#edition-options { display: flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--surface); }
-#edition-options label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 24px; padding: 0 8px; border-radius: 4px; cursor: pointer; }
-#edition-options label:has(input:checked) { background: var(--ink); color: var(--page); }
-#edition-options label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
-#edition-options input { position: absolute; opacity: 0; width: 100%; height: 100%; inset: 0; margin: 0; cursor: pointer; }
+.edition-filter { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; font-size: 11px; color: var(--muted); }
+.edition-filter legend { float: left; padding: 0; }
+#edition-options { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); }
+.edition-toggle { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
+.edition-toggle[aria-pressed='true'] { background: var(--ink); color: var(--page); border-color: var(--ink); }
+.edition-toggle::before { content: ''; width: 5px; height: 5px; border: 1px solid currentColor; border-radius: 50%; }
+.edition-toggle[aria-pressed='true']::before { background: currentColor; }
+.edition-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.edition-feedback { position: absolute; top: 100%; left: 0; z-index: 6; background: var(--surface); color: var(--ink); border-radius: 4px; }
+.edition-feedback:not(:empty) { padding: 6px 10px; box-shadow: var(--ring); }
 @media (max-width: 760px) {
   .topbar { gap: 8px; }
 
@@ -737,7 +742,7 @@ h1, h2, h3, p { text-wrap: pretty; }
 .language-control select, .theme-control select, .dock-control select { min-height: 28px; border: 0; border-radius: 3px; padding: 0 2px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 12px; }
 select:focus-visible, .dock-resizer:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; padding: 9px 0; }
-#edition-options { width: 320px; height: 28px; flex-wrap: nowrap; }
+#edition-options { width: 280px; height: 32px; flex-wrap: nowrap; }
 .explorer-shell {
   --dock-size: 320px;
   display: grid;
@@ -791,7 +796,7 @@ select:focus-visible, .dock-resizer:focus-visible { outline: 2px solid var(--foc
   .header-meta { gap: 6px; }
   .language-control, .theme-control { padding-inline: 4px; }
   .toolbar { gap: 8px; }
-  #edition-options { width: 100%; }
+  #edition-options { width: auto; flex: 1; }
   .edition-filter { width: 100%; }
   .explorer-shell { height: calc(100dvh - 182px); min-height: 360px; }
   .detail-header { padding: 14px 12px 10px; }

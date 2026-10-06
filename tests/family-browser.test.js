@@ -21,7 +21,7 @@ test('family crossfade preserves chrome geometry and paints every frame in ES/EN
         await page.waitForTimeout(400);
         for (const family of ['llm', 'web']) {
           const result = await page.evaluate(async (family) => {
-            const selectors = ['.brand', '#family-nav', '#risk-search', '#edition-options', '#timeline-stage'];
+            const selectors = ['.brand', '#family-nav', '#risk-search', '#edition-options', '.timeline-panel'];
             const boxes = () => selectors.map((selector) => {
               const { x, y, width, height } = document.querySelector(selector).getBoundingClientRect();
               return { selector, x, y, width, height };

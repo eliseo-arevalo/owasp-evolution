@@ -24,6 +24,8 @@ const ui = {
   'Sistema': 'System',
   'Oscuro': 'Dark',
   'Claro': 'Light',
+  'Ediciones': 'Editions',
+  'Mantén al menos una edición visible.': 'Keep at least one edition visible.',
   'Ediciones visibles': 'Visible editions',
   '← Volver': '← Back',
   'Volver a la matriz': 'Back to matrix',
