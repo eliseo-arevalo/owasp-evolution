@@ -84,7 +84,8 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     getRisk: () => ({ id: 'A01', name: 'Access control' }),
     getLineage: () => ({ nodes: [] }),
     applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
-    document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
+    syncThemeLabel() {}, updateEmphasis() {},
+    document: { querySelectorAll: () => [], querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: {
       matrixPage: { hidden: false },
       detailModal: { show: () => calls.push('open') },
@@ -122,7 +123,8 @@ test('selecting another row keeps the matrix and only moves the selection', () =
     getRisk: () => ({ id: route.id, name: '' }),
     getLineage: () => ({ nodes: [] }),
     applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
-    document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
+    syncThemeLabel() {}, updateEmphasis() {},
+    document: { querySelectorAll: () => [], querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
     captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {},
     renderTimeline: () => calls.push('matrix'), renderLineageSummary: () => calls.push('path'),
@@ -138,7 +140,7 @@ test('selecting another row keeps the matrix and only moves the selection', () =
 test('hover and focus preview without navigating; arrows move between rows', () => {
   const preview = app.slice(app.indexOf("addEventListener('pointerover'"), app.indexOf("window.addEventListener('hashchange'"));
   assert.doesNotMatch(preview, /navigate\(|location\.hash|history\./);
-  assert.match(app, /const emphasisKey = \(\) => hoverKey \?\? focusKey \?\? selectedKey/);
+  assert.match(app, /const emphasisKey = \(\) => currentRoute.detail \? selectedKey : hoverKey \?\? focusKey \?\? selectedKey/);
   assert.match(app, /applyEmphasis\(emphasisKey\(\), mode\)/);
   for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) assert.match(app, new RegExp(`'${key}'`));
   assert.match(app, /primaryNeighbor\(activeEdges, card\.dataset\.key/);
@@ -160,7 +162,8 @@ function renderHarness(route) {
     getRisk: () => ({ id: route().id, name: '' }),
     getLineage: () => ({ nodes: [] }),
     applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
-    document: { querySelector: () => ({}), body: { classList: { toggle() {} } } },
+    syncThemeLabel() {}, updateEmphasis() {},
+    document: { querySelectorAll: () => [], querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
     captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {}, renderLineageSummary() {},
     renderTimeline: (family, ease) => calls.push(`matrix ${family.id} ease=${ease}`),

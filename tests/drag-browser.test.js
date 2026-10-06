@@ -79,7 +79,7 @@ test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.M
     await mobile.locator('.risk-detail').click(); await mobile.waitForTimeout(400);
     assert.equal(await mobile.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
     assert.equal(await mobile.locator('#dock-select').isVisible(),false);
-    assert.equal(await mobile.locator('#dock-select').isDisabled(),true);
+    assert.equal(await mobile.locator('#dock-select button').first().isDisabled(),true);
     const cdp = await mobile.context().newCDPSession(mobile);
     const touch = async (target, wait=160) => {
       const b=await mobile.locator('#dock-resizer').boundingBox();

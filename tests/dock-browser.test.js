@@ -62,12 +62,12 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
       const frames=await page.evaluate(()=>window.themeFrames);
       assert.ok(frames.length > 0);
       assert.ok(frames.every(f=>f.theme===theme&&f.bg===(theme==='dark'?'rgb(17, 17, 17)':'rgb(247, 247, 247)')),JSON.stringify(frames));
-      assert.equal(await page.locator('#theme-select').inputValue(),theme);
-      await page.selectOption('#language-select','es');
+      assert.equal(await page.locator('[data-theme-choice][aria-checked="true"]').getAttribute('data-theme-choice'),theme);
+      await page.locator('[data-language="es"]').click();
       for(const dock of width===1440?['bottom','right','left']:['bottom']) {
         await sampleAnimation(page,()=>page.locator('.risk-detail').click());
         await page.waitForTimeout(100);
-        if(width===1440) await page.selectOption('#dock-select',dock);
+        if(width===1440) await page.locator(`#dock-select [data-dock="${dock}"]`).click();
         await page.waitForTimeout(350);
         const result=await measure(page);check(result);
         assert.equal(result.dock,dock);
@@ -102,12 +102,12 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
     }
     const page=await browser.newPage({viewport:{width:1440,height:900},colorScheme:'light',reducedMotion:'reduce'});
     await page.goto('http://localhost:4180');
-    assert.equal(await page.locator('#theme-select').inputValue(),'system');
+    assert.equal(await page.locator('[data-theme-choice][aria-checked="true"]').getAttribute('data-theme-choice'),'system');
     assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
     await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
     await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
     assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
-    await page.selectOption('#theme-select','light');
+    await page.locator('#theme-select').click(); await page.locator('[data-theme-choice="light"]').click();
     await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
     assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
     await page.reload();assert.equal(await page.locator('html').getAttribute('data-theme'),'light');

@@ -45,7 +45,7 @@
 
       <div class="export-control">
         <button id="export-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="export-menu">Exportar</button>
-        <div id="export-menu" role="menu" aria-labelledby="export-button" hidden>
+        <div id="export-menu" class="control-menu" role="menu" aria-labelledby="export-button" hidden>
           <button type="button" role="menuitem" tabindex="-1" data-export="png">PNG · 2×</button>
           <button type="button" role="menuitem" tabindex="-1" data-export="svg">SVG</button>
           <button type="button" role="menuitem" tabindex="-1" data-export="csv">CSV</button>
@@ -54,8 +54,21 @@
         </div>
       </div>
       <span id="export-status" class="sr-only" role="status"></span>
-      <label class="language-control"><span aria-hidden="true">◎</span><span class="sr-only">Idioma</span><select id="language-select"><option value="es">ES</option><option value="en">EN</option></select></label>
-      <label class="theme-control"><span aria-hidden="true">◐</span><span class="sr-only" id="theme-label">Tema</span><select id="theme-select" aria-labelledby="theme-label"><option value="system">Sistema</option><option value="dark">Oscuro</option><option value="light">Claro</option></select></label>
+      <div class="language-control segmented" id="language-select" role="group" aria-label="Idioma">
+        <button type="button" data-language="es" aria-pressed="true">ES</button>
+        <button type="button" data-language="en" aria-pressed="false">EN</button>
+      </div>
+      <div class="theme-control menu-control">
+        <span class="sr-only" id="theme-label">Tema</span>
+        <button id="theme-select" type="button" aria-labelledby="theme-label theme-value" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu">
+          <span id="theme-value">Sistema</span><span aria-hidden="true">⌄</span>
+        </button>
+        <div id="theme-menu" class="control-menu" role="menu" aria-labelledby="theme-select" hidden>
+          <button type="button" role="menuitemradio" aria-checked="true" tabindex="-1" data-theme-choice="system">Sistema</button>
+          <button type="button" role="menuitemradio" aria-checked="false" tabindex="-1" data-theme-choice="dark">Oscuro</button>
+          <button type="button" role="menuitemradio" aria-checked="false" tabindex="-1" data-theme-choice="light">Claro</button>
+        </div>
+      </div>
     </div>
   </header>
 

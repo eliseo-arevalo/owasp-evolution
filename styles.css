@@ -69,7 +69,7 @@ body {
   font-feature-settings: 'liga' 1, 'tnum' 1;
   -webkit-font-smoothing: antialiased;
 }
-button, input, select { font: inherit; }
+button, input { font: inherit; }
 button { color: inherit; }
 a { color: inherit; }
 
@@ -687,17 +687,7 @@ h1, h2, h3, p { text-wrap: pretty; }
 }
 .header-meta { display: flex; align-items: center; justify-self: end; gap: 12px; }
 .language-control { display: flex; align-items: center; font-size: 11px; }
-.language-control select {
-  min-height: 26px;
-  padding: 2px 0;
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  cursor: pointer;
-}
 .family-tab:focus-visible,
-.language-control select:focus-visible,
 #edition-options input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .edition-filter { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; font-size: 11px; color: var(--muted); }
@@ -742,8 +732,7 @@ h1, h2, h3, p { text-wrap: pretty; }
 .header-meta .search-wrap { flex: 0 1 280px; width: 280px; }
 .search-control { height: 32px; }
 .language-control, .theme-control { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 12px; flex: none; }
-.language-control select, .theme-control select, .dock-control select { min-height: 28px; border: 0; border-radius: 3px; padding: 0 2px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 12px; }
-select:focus-visible, .dock-resizer:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.dock-resizer:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; padding: 9px 0; }
 #edition-options { width: 280px; height: 32px; flex-wrap: nowrap; }
 .explorer-shell {
@@ -840,4 +829,24 @@ select:focus-visible, .dock-resizer:focus-visible { outline: 2px solid var(--foc
   .detail-header { cursor: auto; touch-action: auto; }
   .timeline-panel .timeline-stage { --risk-row-height: clamp(24px, calc((100cqh - 56px) / 10), 36px); }
   .timeline-scroll { overscroll-behavior: contain; }
+}
+
+/* Neutral controls share the top bar's 32px rhythm. */
+.segmented { display: inline-flex; height: 32px; padding: 2px; gap: 2px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); }
+.segmented button { height: 26px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 3px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.segmented button[aria-pressed='true'] { background: var(--surface-hover); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.segmented button:focus-visible, #theme-select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.menu-control { position: relative; padding: 0; border: 0; }
+#theme-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 32px; min-width: 84px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font-size: 12px; cursor: pointer; }
+.control-menu { position: absolute; top: 38px; right: 0; z-index: 30; width: 160px; padding: 4px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); box-shadow: 0 4px 16px #0003; }
+.control-menu button { display: block; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.control-menu button:focus, .control-menu button:hover { outline: 0; background: var(--surface-hover); }
+.control-menu [aria-checked='true']::after { content: '✓'; float: right; }
+@media (max-width: 760px) {
+  .header-meta { flex-wrap: wrap; justify-content: flex-end; }
+  .header-meta .search-wrap { flex: 1 0 100%; width: 100%; max-width: none; order: 2; }
+  .explorer-shell { height: calc(100dvh - 220px); }
+  .timeline-panel .timeline-stage { --risk-row-height: 38px; }
+  .risk-name { line-height: 15px; }
+  .risk-copy { max-height: none; }
 }

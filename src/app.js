@@ -1,3 +1,4 @@
+import { menuButton } from './menu.js';
 import { exportFilename, exportCSV, exportJSON, exportMarkdown, matrixSVG, pngBlob, download } from './export.js';
 import { detectLanguage, readLanguagePreference, saveLanguagePreference } from './locale.js';
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
@@ -100,7 +101,7 @@ const connectorDefs = document.createElementNS(SVG_NS, 'defs');
 elements.connectorLayer.prepend(connectorDefs);
 const connectorPaths = () => elements.connectorLayer.querySelectorAll(':scope > path:not(.connector-hit)');
 const reducedMotion = () => prefersReducedMotion(window);
-const emphasisKey = () => hoverKey ?? focusKey ?? selectedKey;
+const emphasisKey = () => currentRoute.detail ? selectedKey : hoverKey ?? focusKey ?? selectedKey;
 const resolveDetailReturn = () => elements.timelineStage.querySelector('.is-selected .risk-focus');
 
 function node(tag, className, text) {
@@ -771,25 +772,32 @@ function hideSearchResults() {
 }
 
 function dockControl() {
-  const label = node('label', 'dock-control');
-  const caption = node('span', 'sr-only', language === 'es' ? 'Posición del panel' : 'Panel position');
-  const select = node('select');
-  select.id = 'dock-select';
-  for (const [value, es, en] of [['bottom', 'Abajo', 'Bottom'], ['right', 'Derecha', 'Right'], ['left', 'Izquierda', 'Left']]) {
-    const option = node('option', '', language === 'es' ? es : en);
-    option.value = value;
-    select.append(option);
+  const group = node('div', 'dock-control segmented');
+  group.id = 'dock-select';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', language === 'es' ? 'Posición del panel' : 'Panel position');
+  for (const [value, es, en, icon] of [['left', 'Izquierda', 'Left', '◧'], ['right', 'Derecha', 'Right', '◨'], ['bottom', 'Abajo', 'Bottom', '⬒']]) {
+    const button = node('button');
+    button.type = 'button';
+    button.dataset.dock = value;
+    button.setAttribute('aria-label', language === 'es' ? es : en);
+    button.title = language === 'es' ? es : en;
+    const glyph = node('span', '', icon);
+    glyph.setAttribute('aria-hidden', 'true');
+    button.append(glyph);
+    button.addEventListener('click', () => {
+      dockPosition = value;
+      dockPreferences.desktop.side = value;
+      saveDock(); updateDock();
+    });
+    group.append(button);
   }
-  select.value = narrowScreen.matches ? 'bottom' : dockPosition;
-  select.disabled = narrowScreen.matches;
-  select.addEventListener('change', () => {
-    dockPosition = select.value;
-    dockPreferences.desktop.side = dockPosition;
-    saveDock();
-    updateDock();
-  });
-  label.append(caption, select);
-  return label;
+  group.hidden = narrowScreen.matches;
+  for (const button of group.children) {
+    button.disabled = narrowScreen.matches;
+    button.setAttribute('aria-pressed', String(button.dataset.dock === dockPosition));
+  }
+  return group;
 }
 
 let dockLayoutFrame = 0;
@@ -825,8 +833,14 @@ function updateDock() {
   resizer.setAttribute('aria-valuemax', String(Math.round(max)));
   resizer.setAttribute('aria-valuenow', String(Math.round(size)));
   resizer.setAttribute('aria-label', language === 'es' ? 'Cambiar tamaño del panel' : 'Resize panel');
-  const select = document.querySelector('#dock-select');
-  if (select) { select.disabled = narrowScreen.matches; select.value = position; select.parentElement.hidden = narrowScreen.matches; }
+  const group = document.querySelector('#dock-select');
+  if (group) {
+    group.hidden = narrowScreen.matches;
+    for (const button of group.children) {
+      button.disabled = narrowScreen.matches;
+      button.setAttribute('aria-pressed', String(button.dataset.dock === position));
+    }
+  }
   scheduleConnections();
 }
 function commitDock(size) {
@@ -969,7 +983,8 @@ function render() {
   const lineage = getLineage(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
 
   applyStaticLanguage(language);
-  document.querySelector('#language-select').value = language;
+  for (const button of document.querySelectorAll('[data-language]')) button.setAttribute('aria-pressed', String(button.dataset.language === language));
+  syncThemeLabel();
   const detail = Boolean(currentRoute.detail);
   document.body.classList.toggle('detail-open', detail);
   const structure = JSON.stringify([family.id, language, [...yearFilters.get(family.id)]]);
@@ -1007,6 +1022,7 @@ function render() {
       scheduleConnections();
     });
   }
+  if (detail !== wasDetail) updateEmphasis();
   wasDetail = detail;
   document.title = `${selected.id} ${selected.name} · OWASP Evolution`;
 }
@@ -1084,8 +1100,9 @@ new ResizeObserver(drawConnections).observe(elements.timelineStage);
 render();
 if (entryPending) enterPage();
 
-document.querySelector('#language-select').addEventListener('change', (event) => {
-  language = event.target.value;
+document.querySelector('#language-select').addEventListener('click', (event) => {
+  if (!event.target.dataset.language) return;
+  language = event.target.dataset.language;
   saveLanguagePreference(window, language);
   catalog = localizeCatalog(sourceCatalog, language);
   render();
@@ -1099,45 +1116,26 @@ function applyTheme(preference) {
   const theme = preference === 'system' ? (systemTheme.matches ? 'dark' : 'light') : preference;
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#111111' : '#f7f7f7';
-  themeSelect.value = preference;
+  syncThemeLabel();
 }
-themeSelect.addEventListener('change', () => {
-  try { localStorage.setItem('owasp-theme', themeSelect.value); } catch {}
-  applyTheme(themeSelect.value);
+function syncThemeLabel() {
+  const preference = document.documentElement.dataset.themePreference;
+  document.querySelector('#theme-value').textContent = t({ system: 'Sistema', dark: 'Oscuro', light: 'Claro' }[preference]);
+  for (const item of document.querySelectorAll('[data-theme-choice]')) item.setAttribute('aria-checked', String(item.dataset.themeChoice === preference));
+}
+const themeMenu = menuButton(themeSelect, document.querySelector('#theme-menu'));
+document.querySelector('#theme-menu').addEventListener('click', event => {
+  const preference = event.target.closest('[data-theme-choice]')?.dataset.themeChoice;
+  if (!preference) return;
+  try { localStorage.setItem('owasp-theme', preference); } catch {}
+  applyTheme(preference); themeMenu.close(true);
 });
 systemTheme.addEventListener('change', () => applyTheme(document.documentElement.dataset.themePreference));
 applyTheme(document.documentElement.dataset.themePreference);
 
 const exportButton = document.querySelector('#export-button');
 const exportMenu = document.querySelector('#export-menu');
-function closeExport(restore = false) {
-  exportMenu.hidden = true;
-  exportButton.setAttribute('aria-expanded', 'false');
-  if (restore) exportButton.focus();
-}
-function openExport(last = false) {
-  exportMenu.querySelector('[data-export="md"]').disabled = !getRisk(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
-  exportMenu.hidden = false;
-  exportButton.setAttribute('aria-expanded', 'true');
-  const items = [...exportMenu.querySelectorAll('button:not(:disabled)')];
-  (last ? items.at(-1) : items[0]).focus();
-}
-exportButton.addEventListener('click', () => exportMenu.hidden ? openExport() : closeExport(true));
-exportButton.addEventListener('keydown', (event) => {
-  if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openExport(event.key === 'ArrowUp'); }
-});
-exportMenu.addEventListener('keydown', (event) => {
-  const items = [...exportMenu.querySelectorAll('button:not(:disabled)')];
-  const index = items.indexOf(document.activeElement);
-  if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape', 'Tab'].includes(event.key)) {
-    if (event.key === 'Tab') { closeExport(); return; }
-    event.preventDefault(); event.stopPropagation();
-    if (event.key === 'Escape') { closeExport(true); return; }
-    items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
-  }
-});
-document.addEventListener('click', (event) => { if (!event.target.closest('.export-control')) closeExport(); });
-exportMenu.addEventListener('focusout', (event) => { if (!event.relatedTarget?.closest('.export-control')) closeExport(); });
+const { close: closeExport } = menuButton(exportButton, exportMenu);
 exportMenu.addEventListener('click', async (event) => {
   const format = event.target.dataset.export;
   if (!format || event.target.disabled) return;

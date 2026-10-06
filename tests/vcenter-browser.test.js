@@ -5,17 +5,17 @@ import { writeFile } from 'node:fs/promises';
 
 test('Chrome safely centers the matrix and keeps connectors attached across viewport, family and dock changes', { skip: !process.env.MOTION_PLAYWRIGHT }, async () => {
   const { chromium } = await import(process.env.MOTION_PLAYWRIGHT);
-  const server = spawn('python3', ['-m', 'http.server', '4184', '-d', 'dist'], { stdio: 'ignore' });
+  const server = spawn('python3', ['-m', 'http.server', '4195', '-d', 'dist'], { stdio: 'ignore' });
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   const measurements = [];
   try {
     const page = await browser.newPage();
-    await page.goto('http://localhost:4184');
+    await page.goto('http://localhost:4195');
     await page.waitForTimeout(1300);
     for (const [width, height] of [[1440,800], [1440,900], [1440,1000], [1440,1200], [1024,768], [390,844]]) {
       await page.setViewportSize({ width, height });
       for (const theme of ['light', 'dark']) {
-        await page.selectOption('#theme-select', theme);
+        await page.locator('#theme-select').click(); await page.locator(`[data-theme-choice="${theme}"]`).click();
         for (const family of ['web', 'llm']) {
           await page.locator(`[data-family="${family}"]`).click();
           await page.waitForTimeout(500);
@@ -36,7 +36,7 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
                 await page.evaluate(() => { if (document.querySelector('#detail-modal').open) document.querySelector('.detail-back').click(); });
               } else {
                 if (!await page.locator('#detail-modal').evaluate(el => el.open)) await page.locator('.risk-detail').first().click();
-                await page.locator('#dock-select').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change')); }, dock);
+                if (width > 760) await page.locator(`#dock-select [data-dock="${dock}"]`).click();
                 await page.locator('#dock-resizer').focus();
                 await page.keyboard.press('ArrowUp');
               }

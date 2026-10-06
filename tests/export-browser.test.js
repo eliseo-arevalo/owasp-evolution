@@ -13,8 +13,8 @@ test('Chrome downloads all formats and renders standalone images at desktop and 
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto('http://localhost:4182/#/web/2025/A01');
-      await page.selectOption('#language-select', width === 390 ? 'en' : 'es');
-      await page.selectOption('#theme-select', width === 390 ? 'light' : 'dark');
+      await page.locator(`[data-language="${width === 390 ? 'en' : 'es'}"]`).click();
+      await page.locator('#theme-select').click(); await page.locator(`[data-theme-choice="${width === 390 ? 'light' : 'dark'}"]`).click();
       await page.waitForTimeout(200);
       const before = await page.locator('#timeline-stage').boundingBox();
       await page.locator('#export-button').focus();
