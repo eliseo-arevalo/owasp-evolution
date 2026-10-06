@@ -255,7 +255,8 @@ function renderTimeline(family, ease = false) {
 }
 
 // Keep the previous painted matrix above the new one until the crossfade ends.
-// The snapshot is inert and outside flow; neither chrome nor matrix geometry moves.
+// The inert snapshot stays at its painted position while the new matrix eases
+// to its centered position. Both remain outside the chrome's layout.
 function captureFamily() {
   familyExit?.remove();
   familyAnimations.forEach((animation) => animation.cancel());
@@ -264,6 +265,11 @@ function captureFamily() {
   stopReveal();
   stopSettle();
   const snapshot = elements.timelineStage.cloneNode(true);
+  const scroll = elements.timelineStage.parentElement;
+  const box = elements.timelineStage.getBoundingClientRect();
+  const area = scroll.getBoundingClientRect();
+  Object.assign(snapshot.style, { top: `${box.top - area.top + scroll.scrollTop}px`, bottom: 'auto', height: `${box.height}px`, margin: '0' });
+  snapshot.dataset.top = String(box.top);
   snapshot.removeAttribute('id');
   snapshot.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
   snapshot.classList.add('family-snapshot');
@@ -278,6 +284,10 @@ function crossfadeFamily(snapshot) {
   if (!snapshot) return;
   pendingReveal = false;
   stopSettle();
+  const offset = Number(snapshot.dataset.top) - elements.timelineStage.getBoundingClientRect().top;
+  familyAnimations.push(elements.timelineStage.animate([
+    { transform: `translateY(${offset}px)` }, { transform: 'translateY(0)' },
+  ], { duration: MOTION.family, easing: EASE }));
   drawConnections();
   const exit = snapshot.animate([{ opacity: 1 }, { opacity: 0 }], {
     duration: MOTION.family, easing: EASE, fill: 'forwards',
@@ -292,7 +302,8 @@ function crossfadeFamily(snapshot) {
 }
 
 function columnBoxes() {
-  const stage = elements.timelineStage.getBoundingClientRect();
+  // Include the centering offset in FLIP so a change in row count cannot jump.
+  const stage = elements.timelineStage.parentElement.getBoundingClientRect();
   return new Map([...elements.timelineGrid.children].map((column) => {
     const box = column.getBoundingClientRect();
     return [Number(column.dataset.year), { x: box.left - stage.left, y: box.top - stage.top }];

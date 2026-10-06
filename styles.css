@@ -247,14 +247,18 @@ h1, h2, h3, p { text-wrap: pretty; }
 
 .timeline-scroll {
   position: relative;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: auto;
-  padding: 1px 1px 12px;
+  padding: 1px;
   scrollbar-color: var(--line-strong) transparent;
 }
 .timeline-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 8px; }
 .timeline-stage {
   position: relative;
+  flex: none;
+  margin-block: auto;
   min-width: calc(var(--edition-count, 3) * 180px + (var(--edition-count, 3) - 1) * 44px);
   width: 100%;
 }
@@ -638,7 +642,6 @@ h1, h2, h3, p { text-wrap: pretty; }
 
   .timeline-scroll {
     overflow-x: auto;
-    padding-bottom: 12px;
     scrollbar-color: var(--line-strong) transparent;
   }
 }
