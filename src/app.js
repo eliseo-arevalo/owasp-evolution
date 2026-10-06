@@ -202,9 +202,12 @@ function renderTimeline(family, ease = false) {
       button.append(rank, copy);
       const marks = riskCues(cue);
       if (marks) button.append(marks);
-      button.addEventListener('click', () => navigate(
-        { family: family.id, year: edition.year, id: risk.id },
-      ));
+      button.addEventListener('click', (event) => {
+        // A double click commits once; keyboard activation has detail === 0.
+        if (event.detail > 1) return;
+        navigate({ family: family.id, year: edition.year, id: risk.id });
+      });
+      button.addEventListener('dblclick', openDetail);
       card.append(button);
       list.append(card);
     }
@@ -380,7 +383,8 @@ function renderLineageSummary(family, lineage) {
   const path = lineagePath(lineage.nodes, yearFilters.get(family.id));
   const { route, hidden } = formatLineagePath(path, language === 'es' ? 'en' : 'in');
   elements.timelineHelp.replaceChildren(node('span', 'path-route', route));
-  for (const text of hidden) elements.timelineHelp.append(node('span', 'path-hidden', text));
+  for (const text of hidden) elements.timelineHelp.append(node('span', 'path-hidden', ` ${text}`));
+  elements.timelineHelp.title = [route, ...hidden].join(' ');
 }
 
 function rowTarget(card, key) {

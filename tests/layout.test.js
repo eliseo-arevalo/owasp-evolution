@@ -121,7 +121,7 @@ test('chrome stays neutral: color only on connections and lineage tints', async 
 
 test('legend sits beside the edition filter and stays visible, compact, on narrow screens', async () => {
   const [css, html] = await Promise.all([readFile(cssUrl, 'utf8'), readFile(htmlUrl, 'utf8')]);
-  const summary = html.slice(html.indexOf('class="timeline-summary"'), html.indexOf('class="timeline-meta"'));
+  const summary = html.slice(html.indexOf('class="toolbar"'), html.indexOf('class="explorer-shell"'));
   assert.match(summary, /id="edition-filter"[\s\S]*class="legend"/);
   assert.equal(html.match(/class="legend"/g).length, 1);
   assert.equal(html.match(/class="legend-short"/g).length, 3);
@@ -143,4 +143,22 @@ test('category details are a centered reading modal over the visible matrix', as
   assert.match(html, /<dialog[^>]*id="detail-modal"[^>]*aria-labelledby="detail-title"/);
   assert.match(html, /id="open-detail"[^>]*aria-haspopup="dialog"/);
   assert.doesNotMatch(html, /<aside/);
+});
+
+test('lineage summary reserves one fixed line with ellipsis, including hidden years', async () => {
+  const css = await readFile(cssUrl, 'utf8');
+  const help = rule(css, '.timeline-help');
+  assert.match(help, /height:\s*28px/);
+  assert.match(help, /overflow:\s*hidden/);
+  assert.match(help, /text-overflow:\s*ellipsis/);
+  assert.match(help, /white-space:\s*nowrap/);
+  assert.doesNotMatch(css, /\.path-route\s*\{\s*white-space:\s*normal/);
+});
+test('search, segmented editions, legend and family share a wrapping control bar', async () => {
+  const [css, html] = await Promise.all([readFile(cssUrl, 'utf8'), readFile(htmlUrl, 'utf8')]);
+  const toolbar = html.slice(html.indexOf('class="toolbar"'), html.indexOf('class="explorer-shell"'));
+  for (const id of ['risk-search', 'edition-options', 'family-nav']) assert.ok(toolbar.includes(`id="${id}"`));
+  assert.match(toolbar, /class="legend"/);
+  assert.match(rule(css, '.toolbar'), /flex-wrap:\s*wrap/);
+  assert.match(css, /label:has\(input:checked\)/);
 });

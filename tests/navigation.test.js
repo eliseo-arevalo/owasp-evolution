@@ -51,10 +51,12 @@ test('shared detail links return to their category without going to another webs
   assert.equal(backs(), 0);
 });
 
-test('only explicit detail buttons open the modal; no double click or side panel', () => {
+test('detail buttons and row double click open the modal', () => {
   assert.match(app, /detail.addEventListener\('click', openDetail/);
   assert.match(app, /elements.openDetailButton.addEventListener\('click', \(\) => openDetail/);
-  assert.doesNotMatch(app, /dblclick|setInspectorOpen/);
+  assert.match(app, /button.addEventListener\('dblclick', openDetail\)/);
+  assert.match(app, /if \(event.detail > 1\) return/);
+  assert.doesNotMatch(app, /setInspectorOpen/);
   assert.match(app, /if \(signature !== matrixSignature\)/);
 });
 
@@ -143,7 +145,7 @@ test('hover and focus preview without navigating; arrows move between rows', () 
   assert.match(app, /applyEmphasis\(emphasisKey\(\), mode\)/);
   for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) assert.match(app, new RegExp(`'${key}'`));
   assert.match(app, /primaryNeighbor\(activeEdges, card\.dataset\.key/);
-  assert.match(app, /button\.addEventListener\('click', \(\) => navigate\(/);
+  assert.match(app, /button\.addEventListener\('click', \(event\) =>/);
 });
 
 test('row tooltips start with the full official name and the counter never says nodes', () => {
@@ -255,4 +257,22 @@ test('dismissModal closes after the exit animation, or at once with reduced moti
   animated.timer.callback();
   assert.deepEqual(animated.events, ['close', 'done']);
   assert.ok(!animated.classes.has('is-closing'));
+});
+
+test('double click selects once and opens detail; keyboard click still selects', () => {
+  const handlers = new Map();
+  const calls = [];
+  const source = app.slice(app.indexOf("button.addEventListener('click', (event)"), app.indexOf('      card.append(button);'));
+  vm.runInNewContext(source, {
+    button: { addEventListener: (type, handler) => handlers.set(type, handler) },
+    family: { id: 'web' }, edition: { year: 2025 }, risk: { id: 'A02' },
+    navigate: (route) => calls.push(`select ${route.year}:${route.id}`),
+    openDetail: () => calls.push('detail'),
+  });
+  handlers.get('click')({ detail: 1 });
+  handlers.get('click')({ detail: 2 });
+  handlers.get('dblclick')();
+  assert.deepEqual(calls, ['select 2025:A02', 'detail']);
+  handlers.get('click')({ detail: 0 });
+  assert.equal(calls.at(-1), 'select 2025:A02');
 });

@@ -7,7 +7,7 @@
   <meta property="og:title" content="OWASP Evolution">
   <meta property="og:description" content="Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#101116">
+  <meta name="theme-color" content="#111111">
   <title>OWASP Evolution</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -19,7 +19,6 @@
       <span class="brand-mark" aria-hidden="true"></span>
       <span>OWASP Evolution</span>
     </a>
-    <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
     <div class="header-meta">
       <label class="language-control"><span class="sr-only">Idioma</span><select id="language-select"><option value="es">ES</option><option value="en">EN</option></select></label>
     </div>
@@ -43,6 +42,13 @@
         </div>
         <div id="search-results" class="search-results" hidden></div>
       </div>
+      <fieldset class="edition-filter" id="edition-filter"><legend>Ediciones visibles</legend><div id="edition-options"></div></fieldset>
+      <div class="legend" role="group" aria-label="Leyenda de relaciones">
+        <span><i class="legend-line line-continues"></i><span class="legend-full">Continúa / se mueve</span><span class="legend-short">Continúa</span></span>
+        <span><i class="legend-line line-renamed"></i><span class="legend-full">Se renombra</span><span class="legend-short">Renombra</span></span>
+        <span><i class="legend-line line-merged"></i><span class="legend-full">Se fusiona / amplía</span><span class="legend-short">Fusiona</span></span>
+      </div>
+      <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
     </section>
 
     <section class="explorer-shell">
@@ -51,12 +57,6 @@
           <div class="timeline-summary">
             <div>
               <h2 id="timeline-title"></h2>
-            </div>
-            <fieldset class="edition-filter" id="edition-filter"><legend>Ediciones visibles</legend><div id="edition-options"></div></fieldset>
-            <div class="legend" role="group" aria-label="Leyenda de relaciones">
-              <span><i class="legend-line line-continues"></i><span class="legend-full">Continúa / se mueve</span><span class="legend-short">Continúa</span></span>
-              <span><i class="legend-line line-renamed"></i><span class="legend-full">Se renombra</span><span class="legend-short">Renombra</span></span>
-              <span><i class="legend-line line-merged"></i><span class="legend-full">Se fusiona / amplía</span><span class="legend-short">Fusiona</span></span>
             </div>
           </div>
           <div class="timeline-meta">
