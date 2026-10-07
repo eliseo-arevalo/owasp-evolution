@@ -31,14 +31,14 @@ function setup() {
 test('single row selection navigates to a matrix route', () => {
   const { context } = setup();
   vm.runInContext("navigate({family: 'web', year: 2025, id: 'A02'});", context);
-  assert.equal(context.location.hash, pathFor({family:'web',year:2025,id:'A02'},catalog));
+  assert.equal(context.location.hash, pathFor({family:'web',year:2025,id:'A02'},catalog,'es'));
 });
 
 test('opening the modal saves the matrix hash; returning uses history', () => {
   const { context, renders, backs } = setup();
   vm.runInContext('openDetail();', context);
-  assert.equal(context.location.hash, pathFor(context.currentRoute,catalog));
-  assert.equal(context.matrixReturnHash, '/genai/');
+  assert.equal(context.location.hash, pathFor(context.currentRoute,catalog,'es'));
+  assert.equal(context.matrixReturnHash, '/es/genai/');
   assert.equal(renders(), 1);
   vm.runInContext('returnToMatrix();', context);
   assert.equal(backs(), 1);
@@ -49,7 +49,7 @@ test('shared detail links return to their category without going to another webs
   context.currentRoute.detail = true;
   context.location.hash += '/detalle';
   vm.runInContext('returnToMatrix();', context);
-  assert.equal(context.location.hash, '/genai/');
+  assert.equal(context.location.hash, '/es/genai/');
   assert.equal(backs(), 0);
 });
 

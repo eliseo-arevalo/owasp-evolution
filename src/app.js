@@ -971,20 +971,20 @@ function keepModal() {
 
 function updateMetadata(family, selected) {
   const category = /\/\d{4}\//.test(location.pathname);
-  const isHome = location.pathname === '/' || location.pathname === '/en/';
+  const isHome = /^\/(?:en\/|es\/)?$/.test(location.pathname);
   const route = category ? currentRoute : isHome ? null : { family: family.id };
   const origin = new URL(document.querySelector('link[rel="canonical"]').href).origin;
   const title = category ? `${selected.id}: ${selected.name} · ${selected.year} · ${language.toUpperCase()} · OWASP Evolution` : isHome ? `OWASP Evolution · ${language === 'es' ? 'Evolución de riesgos' : 'Risk evolution'}` : `${family.label} · ${language.toUpperCase()} · OWASP Evolution`;
   const description = category ? `${selected.id} (${selected.year}): ${selected.summary}` : isHome ? t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.') : family.description;
   document.title = title;
   document.querySelector('link[rel="canonical"]').href = origin + pathFor(route, sourceCatalog, language);
-  for (const link of document.querySelectorAll('link[hreflang]')) link.href = origin + pathFor(route, sourceCatalog, link.hreflang === 'en' ? 'en' : 'es');
+  for (const link of document.querySelectorAll('link[hreflang]')) link.href = origin + pathFor(route, sourceCatalog, link.hreflang === 'es' ? 'es' : 'en');
   for (const [selector, content] of [
     ['meta[name="description"]', description], ['meta[property="og:title"]', title], ['meta[name="twitter:title"]', title],
     ['meta[property="og:description"]', description], ['meta[name="twitter:description"]', description],
     ['meta[property="og:url"]', origin + pathFor(route, sourceCatalog, language)],
-    ['meta[property="og:image"]', `${origin}/assets/og-${family.id}-${language}.png`],
-    ['meta[name="twitter:image"]', `${origin}/assets/og-${family.id}-${language}.png`],
+    ['meta[property="og:image"]', `${origin}/assets/og-${isHome ? 'web' : family.id}-${language}.png`],
+    ['meta[name="twitter:image"]', `${origin}/assets/og-${isHome ? 'web' : family.id}-${language}.png`],
   ]) document.querySelector(selector).content = content;
   const structured = category ? [
     { '@context': 'https://schema.org', '@type': 'DefinedTerm', name: selected.name, termCode: selected.id, description: selected.summary, url: origin + pathFor(route, sourceCatalog, language), inDefinedTermSet: selected.source },
@@ -996,7 +996,7 @@ function updateMetadata(family, selected) {
   ] : { '@context': 'https://schema.org', '@type': isHome ? 'WebSite' : 'CollectionPage', name: title, url: origin + pathFor(route, sourceCatalog, language), inLanguage: language };
   document.querySelector('script[type="application/ld+json"]').textContent = JSON.stringify(structured);
   document.querySelector('meta[property="og:type"]').content = category ? 'article' : 'website';
-  elements.brand.href = language === 'en' ? '/en/' : '/';
+  elements.brand.href = pathFor(null, sourceCatalog, language);
 }
 
 function render() {
@@ -1135,7 +1135,7 @@ document.querySelector('#language-select').addEventListener('click', (event) => 
   if (!event.target.dataset.language) return;
   language = event.target.dataset.language;
   saveLanguagePreference(window, language);
-  const languageRoute = /^(?:\/en)?\/$/.test(location.pathname) ? null : /\/\d{4}\//.test(location.pathname) ? currentRoute : { family: currentRoute.family };
+  const languageRoute = /^(?:\/(?:en|es))?\/$/.test(location.pathname) ? null : /\/\d{4}\//.test(location.pathname) ? currentRoute : { family: currentRoute.family };
   history.pushState({ route: currentRoute }, '', pathFor(languageRoute, sourceCatalog, language));
   catalog = localizeCatalog(sourceCatalog, language);
   render();
@@ -1193,4 +1193,4 @@ exportMenu.addEventListener('click', async (event) => {
   }
 });
 
-elements.brand.addEventListener('click', event => { event.preventDefault(); history.pushState(null, '', language === 'en' ? '/en/' : '/'); render(); });
+elements.brand.addEventListener('click', event => { event.preventDefault(); history.pushState(null, '', pathFor(null, sourceCatalog, language)); render(); });

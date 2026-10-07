@@ -8,6 +8,10 @@ test('deep links hydrate, old hashes migrate and browser history restores select
  try {const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://localhost:4193/en/web/2025/a01-broken-access-control/');await page.waitForSelector('#detail-title');
  assert.match(await page.locator('#detail-title').textContent(),/Broken Access Control/);assert.equal(await page.locator('html').getAttribute('lang'),'en');
+ assert.ok((await page.locator('link[rel="canonical"]').getAttribute('href')).endsWith('/web/2025/a01-broken-access-control/'));
+ await page.locator('[data-language="es"]').click();assert.equal(new URL(page.url()).pathname,'/es/web/2025/a01-broken-access-control/');
+ await page.reload();await page.waitForSelector('#detail-title');assert.equal(await page.locator('html').getAttribute('lang'),'es');
+ await page.locator('[data-language="en"]').click();assert.equal(new URL(page.url()).pathname,'/web/2025/a01-broken-access-control/');
  await page.goto('http://localhost:4193/#/web/2025/A01/detalle');await page.waitForSelector('#detail-title');assert.ok(page.url().endsWith('/web/2025/a01-broken-access-control/'));
  await page.keyboard.press('Escape');await page.waitForTimeout(300);
  await page.locator('[data-key="2025:A02"] .risk-focus').click();const selectedUrl=page.url();await page.locator('[data-key="2025:A03"] .risk-focus').click();await page.goBack();assert.equal(page.url(),selectedUrl);
@@ -18,9 +22,16 @@ test('skip link moves focus to the explorer and URL language overrides saved pre
  const {chromium}=await import(process.env.MOTION_PLAYWRIGHT);
  const server=spawn('python3',['-m','http.server','4195','-d','dist'],{stdio:'ignore'});
  const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',args:['--no-sandbox']});
- try {const page=await browser.newPage({reducedMotion:'reduce'});await page.addInitScript(()=>localStorage.setItem('owasp-language','en'));
- await page.goto('http://localhost:4195/');await page.waitForSelector('.risk-focus');assert.equal(await page.locator('html').getAttribute('lang'),'es');
+ try {const page=await browser.newPage({reducedMotion:'reduce'});await page.addInitScript(()=>localStorage.setItem('owasp-language','es'));
+ await page.goto('http://localhost:4195/');await page.waitForSelector('.risk-focus');assert.equal(await page.locator('html').getAttribute('lang'),'en');
  await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.className),'skip-link');await page.keyboard.press('Enter');assert.equal(await page.evaluate(()=>document.activeElement.id),'timeline');
- await page.goto('http://localhost:4195/en/');await page.waitForSelector('.risk-focus');await page.locator('[data-language="es"]').click();assert.equal(await page.locator('#risk-search').getAttribute('placeholder'),'Buscar categorías');assert.equal(new URL(page.url()).pathname,'/');
+ await page.goto('http://localhost:4195/en/');await page.waitForSelector('.risk-focus');await page.locator('[data-language="es"]').click();assert.equal(await page.locator('#risk-search').getAttribute('placeholder'),'Buscar categorías');assert.equal(new URL(page.url()).pathname,'/es/');
+ assert.ok((await page.locator('.brand').getAttribute('href'))==='/es/');
+ assert.ok((await page.locator('link[hreflang="x-default"]').getAttribute('href')).endsWith('/'));
+ await page.locator('[data-language="en"]').click();assert.equal(new URL(page.url()).pathname,'/');
+ assert.ok((await page.locator('meta[property="og:image"]').getAttribute('content')).endsWith('/assets/og-web-en.png'));
+ await page.goto('http://localhost:4195/es/#/web/2025/A01/detalle');await page.waitForSelector('#detail-title');assert.equal(new URL(page.url()).pathname,'/es/web/2025/a01-broken-access-control/');
+ await page.locator('.brand').click();assert.equal(new URL(page.url()).pathname,'/es/');
+ await page.locator('[data-language="en"]').click();assert.equal(new URL(page.url()).pathname,'/');
  }finally{await browser.close();server.kill();}
 });
