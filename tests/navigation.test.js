@@ -63,7 +63,7 @@ test('detail buttons and row double click open the modal', () => {
 
 
 test('docked detail closes with Back and Escape, and restores row focus', () => {
-  assert.match(app, /close.addEventListener\('click', returnToMatrix\)/);
+  assert.match(app, /actionButton\('close', 'x', 'Cerrar detalle', 'Esc', returnToMatrix\)/);
   assert.match(app, /detailModal.addEventListener\('cancel'/);
   assert.match(app, /if \(fullscreen\) toggleFullscreen\(\);\s*else returnToMatrix\(\)/);
   assert.match(app, /command === 'escape'[\s\S]*?returnToMatrix\(\)/);

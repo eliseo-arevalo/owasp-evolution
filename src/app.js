@@ -1,3 +1,5 @@
+import { sharedTooltip } from './tooltip.js';
+import { lineageEditions } from './lineage.js';
 import { uiIcon } from './icons.js';
 import { shortcutRows, shortcutCommand } from './shortcuts.js';
 import { iconSVG, attackSectionHTML } from './visuals.js';
@@ -64,6 +66,11 @@ let wasDetail = false;
 let detailSignature = '';
 let fullscreen = false;
 let fullscreenReturn = null;
+let detailMenu = null;
+let sectionObserver = null;
+let stopSectionTracking = null;
+let feedbackTimer = null;
+const tooltips = sharedTooltip(document);
 let pendingReveal = false;
 let settling = [];
 let layoutFrame = 0;
@@ -569,23 +576,115 @@ function renderEditionFilter(family) {
   }
 }
 
+function pressFeedback(button) {
+  if (!reducedMotion()) button.animate([{ transform: 'scale(.96)' }, { transform: 'scale(1)' }], { duration: 120, easing: EASE });
+}
+
 function actionButton(action, icon, label, hint, handler) {
   const button = node('button', 'detail-action');
   button.type = 'button';
   button.dataset.action = action;
   button.setAttribute('aria-label', t(label));
-  button.title = `${t(label)}${hint ? ` (${hint})` : ''}`;
+  button.dataset.tooltip = t(label);
+  if (hint) button.dataset.hint = hint;
   if (['fullscreen', 'close'].includes(action)) button.setAttribute('aria-keyshortcuts', action === 'fullscreen' ? 'F' : 'Escape');
   button.insertAdjacentHTML('beforeend', uiIcon(icon));
-  const tooltip = node('span', 'detail-tooltip');
-  tooltip.id = `tooltip-${action}`;
-  tooltip.setAttribute('role', 'tooltip');
-  tooltip.append(node('span', '', t(label)));
-  if (hint) tooltip.append(node('kbd', '', hint));
-  button.append(tooltip);
-  button.setAttribute('aria-describedby', tooltip.id);
-  button.addEventListener('click', handler);
+  button.addEventListener('click', () => { pressFeedback(button); handler(); });
   return button;
+}
+
+function detailFeedback(message, error = false, copied = false) {
+  clearTimeout(feedbackTimer);
+  const status = elements.detailPage.querySelector('.detail-feedback');
+  const announcement = elements.detailPage.querySelector('.detail-announcement');
+  const overflow = elements.detailPage.querySelector('[data-action="overflow"]');
+  const copy = elements.detailPage.querySelector('[data-action="copy"]');
+  const resetCopy = () => {
+    if (!overflow?.isConnected) return;
+    overflow.querySelector('svg').outerHTML = uiIcon('dots-three');
+    overflow.dataset.tooltip = t('Más acciones');
+    overflow.setAttribute('aria-label', t('Más acciones'));
+    copy.querySelector('svg').outerHTML = uiIcon('link');
+    copy.querySelector('.menu-label').textContent = t('Copiar enlace');
+  };
+  resetCopy();
+  status.textContent = message;
+  announcement.textContent = '';
+  requestAnimationFrame(() => { if (announcement.isConnected) announcement.textContent = message; });
+  status.classList.toggle('is-error', error);
+  status.hidden = false;
+  if (copied) {
+    overflow.querySelector('svg').outerHTML = uiIcon('check');
+    overflow.dataset.tooltip = message;
+    overflow.setAttribute('aria-label', message);
+    copy.querySelector('svg').outerHTML = uiIcon('check');
+    copy.querySelector('.menu-label').textContent = message;
+  }
+  feedbackTimer = setTimeout(() => { status.hidden = true; status.textContent = ''; resetCopy(); }, error ? 4000 : 1500);
+}
+
+function detailOverflow(family, risk) {
+  const wrap = node('div', 'detail-overflow');
+  const button = actionButton('overflow', 'dots-three', 'Más acciones', '', () => {});
+  button.setAttribute('aria-haspopup', 'menu');
+  button.setAttribute('aria-expanded', 'false');
+  button.setAttribute('aria-controls', 'detail-menu');
+  const menu = node('div', 'detail-menu');
+  menu.id = 'detail-menu';
+  menu.setAttribute('popover', 'manual');
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', t('Acciones del detalle'));
+  menu.hidden = true;
+  const docks = node('div', 'detail-dock-menu');
+  docks.id = 'dock-select';
+  docks.setAttribute('role', 'group');
+  docks.setAttribute('aria-label', t('Posición del panel'));
+  function menuItem(action, icon, label, hint, handler, parent = menu) {
+    const item = node('button', 'detail-menu-item');
+    item.type = 'button';
+    item.dataset.action = action;
+    item.setAttribute('role', 'menuitem');
+    item.tabIndex = -1;
+    item.insertAdjacentHTML('beforeend', uiIcon(icon));
+    item.append(node('span', 'menu-label', t(label)));
+    if (hint) item.append(node('kbd', '', hint));
+    item.addEventListener('click', () => { pressFeedback(item); detailMenu.close(true); handler(); });
+    parent.append(item);
+    return item;
+  }
+  for (const [index, [value, label, icon]] of [['left', 'Panel a la izquierda', 'sidebar-simple'], ['right', 'Panel a la derecha', 'sidebar-simple'], ['bottom', 'Panel abajo', 'layout']].entries()) {
+    const item = menuItem(`dock-${value}`, icon, label, String(index + 1), () => {
+      setDock(value);
+      detailFeedback(t(label));
+    }, docks);
+    item.dataset.dock = value;
+    item.setAttribute('role', 'menuitemradio');
+    item.setAttribute('aria-checked', String(value === dockPosition));
+    item.setAttribute('aria-pressed', String(value === dockPosition));
+    item.disabled = narrowScreen.matches;
+  }
+  docks.hidden = narrowScreen.matches;
+  menu.append(docks);
+  const separator = node('div', 'detail-menu-separator');
+  separator.setAttribute('role', 'separator');
+  menu.append(separator);
+  menuItem('copy', 'link', 'Copiar enlace', '', async () => {
+    const url = location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      if (button.isConnected) detailFeedback(t('Copiado'), false, true);
+    } catch { if (button.isConnected) detailFeedback(t('No se pudo copiar el enlace'), true); }
+  });
+  menuItem('markdown', 'download-simple', 'Exportar Markdown', '', () => {
+    try {
+      download(new Blob([exportMarkdown(family, risk.year, risk, language)], { type: 'text/markdown;charset=utf-8' }), `owasp-${family.id}-${risk.year}-${risk.id}.md`);
+      detailFeedback(t('Descargado'));
+    } catch { detailFeedback(t('No se pudo exportar. Inténtalo de nuevo.'), true); }
+  });
+  menuItem('shortcuts', 'keyboard', 'Atajos de teclado', '?', showShortcuts);
+  wrap.append(button, menu);
+  detailMenu = menuButton(button, menu);
+  return wrap;
 }
 
 function moveSelection(key) {
@@ -622,9 +721,10 @@ function toggleFullscreen() {
   }
   const button = elements.detailPage.querySelector('[data-action="fullscreen"]');
   button.setAttribute('aria-label', t(fullscreen ? 'Volver al panel' : 'Abrir en pantalla completa'));
-  button.title = `${button.getAttribute('aria-label')} (F)`;
+  button.dataset.tooltip = button.getAttribute('aria-label');
+  button.setAttribute('aria-pressed', String(fullscreen));
+  pressFeedback(button);
   button.querySelector('svg').outerHTML = uiIcon(fullscreen ? 'arrows-in' : 'arrows-out');
-  button.querySelector('.detail-tooltip > span').textContent = button.getAttribute('aria-label');
   scheduleFocus(() => fullscreen ? button : (fullscreenReturn?.isConnected ? fullscreenReturn : button));
 }
 
@@ -643,7 +743,124 @@ function sectionNav(hasAttack) {
   return nav;
 }
 
+function trackSections(body) {
+  const listeners = new AbortController();
+  const on = (element, type, handler) => element.addEventListener(type, handler, { passive: true, signal: listeners.signal });
+  let requestedSection = null;
+  const nav = body.querySelector('.detail-section-nav');
+  const links = [...nav.querySelectorAll('a')];
+  const sections = links.map(link => body.querySelector(link.getAttribute('href')));
+  const update = () => {
+    const edge = body.getBoundingClientRect().top + nav.offsetHeight + 20;
+    const visible = sections.filter(section => section.getBoundingClientRect().top <= edge && section.getBoundingClientRect().bottom > edge);
+    // Nested Example wins within Attack; in two columns prefer the nearest heading.
+    const requested = requestedSection?.getBoundingClientRect();
+    // A short section in either fullscreen column may be unable to reach the top.
+    const active = requested && requested.bottom > edge && requested.top < body.getBoundingClientRect().bottom ? requestedSection
+      : visible.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top)[0]
+      ?? sections.filter(section => section.getBoundingClientRect().top <= edge).at(-1) ?? sections[0];
+    for (const link of links) {
+      if (link.hash === `#${active.id}`) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    }
+  };
+  sectionObserver = new IntersectionObserver(update, { root: body, threshold: [0, .1, .5, 1] });
+  sections.forEach(section => sectionObserver.observe(section));
+  // Also sample scroll positions inside a tall section and after viewport changes.
+  on(body, 'scroll', update);
+  on(nav, 'click', event => {
+    const link = event.target.closest('a');
+    if (link) { requestedSection = body.querySelector(link.hash); update(); }
+  });
+  const manualScroll = () => { requestedSection = null; update(); };
+  on(body, 'wheel', manualScroll);
+  on(body, 'touchstart', manualScroll);
+  on(body, 'pointerdown', event => { if (!event.target.closest('.detail-section-nav')) manualScroll(); });
+  on(body, 'keydown', event => { if (['PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) manualScroll(); });
+  stopSectionTracking = () => listeners.abort();
+  requestAnimationFrame(update);
+}
+
+function renderLineage(family, risk, lineage) {
+  const list = node('ol', 'lineage-list');
+  list.setAttribute('role', 'list');
+  list.setAttribute('aria-label', t('Linaje en el tiempo'));
+  const groups = lineageEditions(family, lineage, risk.key);
+  const navigateItem = item => navigate({ family: family.id, year: item.year, id: item.id, detail: true });
+  for (const group of groups) {
+    const entry = node('li', 'lineage-item');
+    entry.dataset.year = group.year;
+    if (group.nodes.some(item => item.selected)) entry.classList.add('has-current');
+    const year = node('span', 'lineage-year', String(group.year));
+    const content = node('div', 'lineage-edition');
+    const allNew = group.nodes.length > 0 && group.nodes.every(item => item.isNew);
+    if (allNew) content.append(node('span', 'lineage-note lineage-origin', `${t(group.nodes.length > 1 ? 'Nuevas en' : 'Nueva en')} ${group.year}`));
+    for (const item of group.nodes) {
+      const card = node('div', 'lineage-node');
+      if (item.selected) card.classList.add('is-current');
+      const link = node('button', 'lineage-link');
+      link.type = 'button';
+      link.dataset.key = item.key;
+      link.dataset.tooltip = `${item.id} · ${item.name}`;
+      link.setAttribute('aria-label', `${item.year} · ${item.id} · ${item.name}`);
+      if (item.selected) link.setAttribute('aria-current', 'true');
+      link.append(node('span', 'lineage-id', item.id), node('span', 'lineage-title', item.name));
+      link.addEventListener('click', () => navigateItem(item));
+      const meta = node('div', 'lineage-meta');
+      const rank = node('span', 'lineage-rank');
+      rank.dataset.delta = item.delta ?? '';
+      rank.dataset.movement = item.delta === null ? 'new' : item.delta > 0 ? 'up' : item.delta < 0 ? 'down' : 'same';
+      rank.textContent = item.previous ? `#${item.previous.rank} → #${item.rank} ${item.delta > 0 ? '↑' : item.delta < 0 ? '↓' : '='}${Math.abs(item.delta)}` : `#${item.rank}`;
+      rank.setAttribute('aria-label', item.previous ? `${t('Puesto')} ${item.previous.rank} → ${item.rank}; ${t(item.delta > 0 ? 'Sube' : item.delta < 0 ? 'Baja' : 'Sin cambio')} ${Math.abs(item.delta)}` : `${t('Puesto')} ${item.rank}`);
+      meta.append(rank);
+      for (const type of item.relations) meta.append(node('span', `lineage-chip line-${relationKind(type)}`, t(relationshipLabel(type))));
+      if (item.isNew && !allNew) meta.append(node('span', 'lineage-note', `${t('Nueva en')} ${item.year}`));
+      if (item.selected) meta.append(node('span', 'lineage-selected', t('Actual')));
+      card.append(link, meta);
+      if (item.merges.length) {
+        const merged = node('div', 'lineage-merge');
+        merged.setAttribute('role', 'group');
+        merged.setAttribute('aria-label', `${t('Predecesoras fusionadas en')} ${item.year}`);
+        // Label source years explicitly, under the edition where the merge occurs.
+        const sourceYears = [...new Set(item.merges.map(source => source.year))];
+        for (const sourceYear of sourceYears) {
+          const sources = item.merges.filter(source => source.year === sourceYear);
+          const row = node('div', 'lineage-merge-row');
+          row.append(node('span', 'lineage-merge-year', `${sourceYear}:`));
+          sources.forEach((source, index) => {
+            if (index) row.append(document.createTextNode(' + '));
+            const button = node('button', 'lineage-predecessor', source.id);
+            button.type = 'button';
+            button.dataset.key = source.key;
+            button.dataset.tooltip = source.name;
+            button.setAttribute('aria-label', `${source.year} · ${source.id} · ${source.name}`);
+            button.addEventListener('click', () => navigateItem(source));
+            row.append(button);
+          });
+          row.append(node('span', '', ` → ${t(sources.every(source => source.relationship === 'consolidated') ? 'Consolidada' : 'Fusionada')}`));
+          merged.append(row);
+        }
+        card.append(merged);
+      }
+      content.append(card);
+    }
+    for (const item of group.departures) {
+      const departure = node('div', 'lineage-departure');
+      departure.append(node('span', 'lineage-id', item.id), node('span', 'lineage-note', `${t('Sale del Top 10 en')} ${group.year}`));
+      content.append(departure);
+    }
+    entry.append(year, content);
+    list.append(entry);
+  }
+  return list;
+}
+
 function renderDetail(family, risk, lineage) {
+  tooltips.hide();
+  detailMenu?.destroy();
+  sectionObserver?.disconnect();
+  stopSectionTracking?.();
+  clearTimeout(feedbackTimer);
   elements.detailPage.replaceChildren();
   const edition = getEdition(catalog, family.id, risk.year);
 
@@ -651,38 +868,31 @@ function renderDetail(family, risk, lineage) {
   const code = node('div', 'detail-code');
   code.append(node('span', '', `${risk.id} · ${risk.year}`));
   code.append(node('span', 'detail-current', edition.status));
-  const close = actionButton('close', 'x', 'Cerrar detalle', 'Esc', () => {});
+  const close = actionButton('close', 'x', 'Cerrar detalle', 'Esc', returnToMatrix);
   close.classList.add('detail-back');
-  close.addEventListener('click', returnToMatrix);
   const toolbar = node('div', 'detail-actions');
   toolbar.setAttribute('role', 'toolbar');
   toolbar.setAttribute('aria-label', t('Acciones del detalle'));
-  const previous = actionButton('previous', 'arrow-left', 'Elemento anterior', 'K / ↑', () => moveSelection('ArrowUp'));
-  const next = actionButton('next', 'arrow-right', 'Elemento siguiente', 'J / ↓', () => moveSelection('ArrowDown'));
+  const previous = actionButton('previous', 'caret-left', 'Elemento anterior', 'K / ↑', () => moveSelection('ArrowUp'));
+  const next = actionButton('next', 'caret-right', 'Elemento siguiente', 'J / ↓', () => moveSelection('ArrowDown'));
   previous.disabled = risk.rank === 1;
   next.disabled = risk.rank === edition.items.length;
   const full = actionButton('fullscreen', fullscreen ? 'arrows-in' : 'arrows-out', fullscreen ? 'Volver al panel' : 'Abrir en pantalla completa', 'F', toggleFullscreen);
-  const copy = actionButton('copy', 'link', 'Copiar enlace', '', async () => {
-    try { await navigator.clipboard.writeText(location.href); detailStatus.textContent = t('Enlace copiado'); }
-    catch { detailStatus.textContent = t('No se pudo copiar el enlace'); }
-  });
-  const markdown = actionButton('markdown', 'download-simple', 'Exportar este elemento en Markdown', '', () => {
-    download(new Blob([exportMarkdown(family, risk.year, risk, language)], { type: 'text/markdown;charset=utf-8' }), `owasp-${family.id}-${risk.year}-${risk.id}.md`);
-  });
-  toolbar.append(previous, next, dockControl(), full, copy, markdown, close);
-  const detailStatus = node('span', 'sr-only');
-  detailStatus.setAttribute('role', 'status');
-  top.append(code, toolbar, detailStatus);
+  full.setAttribute('aria-pressed', String(fullscreen));
+  toolbar.append(previous, next, full, detailOverflow(family, risk), close);
+  top.append(toolbar);
 
   const heading = node('h1', '', risk.name);
   heading.id = 'detail-title';
-  const icon = visualNode(iconSVG(family.id, risk.year, risk.id, risk.name), 'detail-icon');
+  heading.tabIndex = -1;
+  heading.dataset.tooltip = risk.name;
+  const icon = visualNode(iconSVG(family.id, risk.year, risk.id) || `<span class="risk-icon detail-fallback-icon">${uiIcon(family.id === 'web' ? 'shield-check' : 'robot')}</span>`, 'detail-icon');
   const title = node('div', 'detail-heading');
+  const titleBlock = node('div', 'detail-title-block');
+  titleBlock.append(heading, code);
   if (icon) title.append(icon);
-  title.append(heading);
+  title.append(titleBlock);
   const attack = visualNode(attackSectionHTML(family.id, risk.year, risk.id, t), 'detail-attack');
-  const summary = node('p', 'detail-summary', risk.summary.split('. ')[0]);
-  summary.title = risk.summary;
 
   const prevention = node('section', 'detail-section');
   prevention.id = 'detail-prevention';
@@ -694,37 +904,7 @@ function renderDetail(family, risk, lineage) {
   const history = node('section', 'detail-section');
   history.id = 'detail-lineage';
   history.append(node('h2', '', t('Linaje en el tiempo')));
-  const historyList = node('ol', 'lineage-list');
-  const visibleYears = yearFilters.get(family.id);
-  const cues = rowCues(family, new Set(family.editions.map((item) => item.year)));
-  for (const item of lineage.nodes) {
-    const entry = node('li', 'lineage-item');
-    if (!visibleYears.has(item.year)) entry.classList.add('is-hidden-year');
-    const year = node('span', 'lineage-year', String(item.year));
-    const copy = node('div', 'lineage-copy');
-    const title = node('strong', 'lineage-title');
-    title.append(node('span', 'lineage-id', item.id), document.createTextNode(` · ${item.name}`));
-    copy.append(title);
-    const incoming = lineage.edges.filter((edge) => edge.to === item.key);
-    for (const edge of incoming) {
-      const relation = node('div', 'lineage-relation');
-      const stroke = node('span', `legend-line line-${relationKind(edge.type)}`);
-      stroke.setAttribute('aria-hidden', 'true');
-      relation.append(stroke, node('span', '', t(relationshipLabel(edge.type))));
-      copy.append(relation);
-    }
-    if (!incoming.length) {
-      copy.append(node('p', 'lineage-note', `${t('Nueva en')} ${item.year}`));
-    }
-    const leaves = cues.get(item.key)?.leaves;
-    if (leaves) copy.append(node('p', 'lineage-note', `${t('Sale en')} ${leaves}`));
-    const newNote = `${t('Nueva en')} ${item.year}`;
-    if (item.change && (incoming.length || item.change !== newNote)) {
-      copy.append(node('p', 'lineage-note', item.change));
-    }
-    entry.append(year, copy);
-    historyList.append(entry);
-  }
+  const historyList = renderLineage(family, risk, lineage);
   history.append(historyList);
 
   const relations = node('section', 'detail-section');
@@ -761,7 +941,14 @@ function renderDetail(family, risk, lineage) {
   linkSection.append(sources);
 
   const header = node('header', 'detail-header');
-  header.append(top, title, summary);
+  const status = node('div', 'detail-feedback');
+  status.setAttribute('aria-hidden', 'true');
+  status.hidden = true;
+  const announcement = node('span', 'sr-only detail-announcement');
+  announcement.setAttribute('role', 'status');
+  announcement.setAttribute('aria-live', 'polite');
+  announcement.setAttribute('aria-atomic', 'true');
+  header.append(top, title, status, announcement);
   const body = node('div', 'detail-body');
   body.append(sectionNav(Boolean(attack)));
   const grid = node('div', 'detail-grid');
@@ -776,6 +963,7 @@ function renderDetail(family, risk, lineage) {
   grid.append(left, right);
   body.append(grid);
   elements.detailPage.append(header, body);
+  trackSections(body);
 
 }
 
@@ -911,31 +1099,6 @@ function hideSearchResults() {
   elements.searchResults.hidden = true;
 }
 
-function dockControl() {
-  const group = node('div', 'dock-control segmented');
-  group.id = 'dock-select';
-  group.setAttribute('role', 'group');
-  group.setAttribute('aria-label', language === 'es' ? 'Posición del panel' : 'Panel position');
-  for (const [index, [value, es, en, icon]] of [['left', 'Izquierda', 'Left', 'sidebar-simple'], ['right', 'Derecha', 'Right', 'sidebar-simple'], ['bottom', 'Abajo', 'Bottom', 'layout']].entries()) {
-    const button = node('button');
-    button.type = 'button';
-    button.dataset.dock = value;
-    button.setAttribute('aria-label', language === 'es' ? es : en);
-    button.title = `${language === 'es' ? es : en} (${index + 1})`;
-    button.insertAdjacentHTML('beforeend', uiIcon(icon));
-    button.addEventListener('click', () => {
-      setDock(value);
-    });
-    group.append(button);
-  }
-  group.hidden = narrowScreen.matches;
-  for (const button of group.children) {
-    button.disabled = narrowScreen.matches;
-    button.setAttribute('aria-pressed', String(button.dataset.dock === dockPosition));
-  }
-  return group;
-}
-
 let dockLayoutFrame = 0;
 let dockLayoutUntil = 0;
 function followDockLayout() {
@@ -975,6 +1138,7 @@ function updateDock() {
     for (const button of group.children) {
       button.disabled = narrowScreen.matches;
       button.setAttribute('aria-pressed', String(button.dataset.dock === position));
+      button.setAttribute('aria-checked', String(button.dataset.dock === position));
     }
   }
   scheduleConnections();
@@ -1192,7 +1356,7 @@ function render() {
         snapshot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: EASE }).finished.finally(() => snapshot.remove());
         elements.detailPage.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: EASE });
       }
-      if (activeInside) scheduleFocus(() => elements.detailPage.querySelector(`[data-action="${activeAction}"]`), () => elements.detailPage.querySelector(fullscreen ? '[data-action="fullscreen"]' : '.detail-back'));
+      if (activeInside) scheduleFocus(() => elements.detailPage.querySelector(`[data-action="${activeAction}"]:not(:disabled)`), () => elements.detailPage.querySelector('#detail-title'));
       if (wasDetail) updateDock();
     }
     if (!wasDetail) {
@@ -1203,7 +1367,7 @@ function render() {
       shell.classList.add('has-detail');
       followDockLayout();
       elements.detailModal.scrollTop = 0;
-      scheduleFocus(() => elements.detailPage.querySelector('.detail-back'));
+      scheduleFocus(() => elements.detailPage.querySelector('#detail-title'));
     }
   } else if (wasDetail) {
     if (fullscreen) {
@@ -1263,7 +1427,8 @@ function showShortcuts() {
     list.append(key, description);
   }
   shortcutsDialog.append(top, list, node('p', 'shortcuts-note', 'Los atajos se desactivan al escribir. / Shortcuts pause while typing.'));
-  shortcutsDialog.showModal(); close.focus();
+  title.tabIndex = -1;
+  shortcutsDialog.showModal(); title.focus();
 }
 function closeShortcuts() {
   shortcutsDialog.close();

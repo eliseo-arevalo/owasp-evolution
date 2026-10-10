@@ -36,7 +36,7 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
                 await page.evaluate(() => { if (document.querySelector('#detail-modal').open) document.querySelector('.detail-back').click(); });
               } else {
                 if (!await page.locator('#detail-modal').evaluate(el => el.open)) await page.locator('.risk-detail').first().click();
-                if (width > 760) await page.locator(`#dock-select [data-dock="${dock}"]`).click();
+                if (width > 760) { await page.locator('[data-action="overflow"]').click(); await page.locator(`#dock-select [data-dock="${dock}"]`).click(); }
                 await page.locator('#dock-resizer').focus();
                 await page.keyboard.press('ArrowUp');
               }

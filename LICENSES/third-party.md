@@ -11,3 +11,5 @@ The upstream outline paths are unchanged. Secondary layers use category accent f
 Attack diagrams and educational examples are authored for this project. Their category definitions and prevention guidance link to the official OWASP Top 10:2025 pages in `src/data.js`.
 
 Additional duotone paths in `src/icons.js`, from the same pinned upstream commit: `arrow-left`, `arrow-right`, `arrows-in`, `arrows-out`, `bell-slash`, `browser`, `code`, `database`, `detective`, `download-simple`, `file-arrow-down`, `globe`, `keyboard`, `layout`, `link`, `lock`, `package`, `robot`, `shield-check`, `shopping-cart`, `sidebar-simple`, `user`, `user-circle`, `users`, `warning`, `x`. These icons represent diagram actors, services and panel actions.
+
+The compact detail toolbar also uses the primary outlines for `caret-left`, `caret-right`, `check`, and `dots-three` from Phosphor Icons under the same MIT license.

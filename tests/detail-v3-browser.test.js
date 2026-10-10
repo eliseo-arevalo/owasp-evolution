@@ -32,6 +32,7 @@ test('Chrome: live detail navigation, keyboard, fullscreen focus, bilingual help
     assert.equal(await page.locator('#detail-page .detail-body').evaluate(d=>d.scrollTop),0);
     assert.equal(await page.evaluate(()=>history.length),length+1);
     assert.equal(page.url(),route('A02'));
+    await page.locator('#detail-page [data-action="overflow"]').click();
     await page.locator('#detail-page [data-action="copy"]').click();
     assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),route('A02'));
     assert.deepEqual(await page.evaluate(()=>window.panelEvents),[]);
@@ -102,6 +103,7 @@ test('Chrome: live detail navigation, keyboard, fullscreen focus, bilingual help
     assert.equal(await page.locator('#detail-modal').evaluate(d=>d.open),false);
     await page.keyboard.press('Enter'); assert.ok(await page.locator('#detail-modal').evaluate(d=>d.open)); assert.equal(page.url(),route('A03'));
     // Item export uses the selected category, independent of visible years.
+    await page.locator('#detail-page [data-action="overflow"]').click();
     const download=page.waitForEvent('download'); await page.locator('#detail-page [data-action="markdown"]').click();
     const file=await download; assert.equal(file.suggestedFilename(),'owasp-web-2025-A03.md');
     await page.goto(route('A01')); await page.evaluate(()=>document.fonts.ready); await page.waitForTimeout(300);

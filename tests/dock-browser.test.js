@@ -67,7 +67,7 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
       for(const dock of width===1440?['bottom','right','left']:['bottom']) {
         await sampleAnimation(page,()=>page.locator('.risk-detail').click());
         await page.waitForTimeout(100);
-        if(width===1440) await page.locator(`#dock-select [data-dock="${dock}"]`).click();
+        if(width===1440) { await page.locator('[data-action="overflow"]').click(); await page.locator(`#dock-select [data-dock="${dock}"]`).click(); }
         await page.waitForTimeout(350);
         const result=await measure(page);check(result);
         assert.equal(result.dock,dock);
