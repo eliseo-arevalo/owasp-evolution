@@ -29,3 +29,11 @@ test('light connector hues meet AA 4.5:1 on both page and card surfaces', () => 
     assert.ok(ratio >= 4.5, `${hue}/${bg}: ${ratio}`);
   }
 });
+test('category accents meet AA on light page, example and tile surfaces', () => {
+  const rules = [...css.matchAll(/:root\[data-theme='light'\] \{([^}]+)/g)].map(match => match[1]).join('');
+  const values = Object.fromEntries([...rules.matchAll(/--([\w-]+):\s*(#[\da-f]+);/g)].map(([,key,value])=>[key,value]));
+  for (const hue of ['visual-mint', 'visual-blue', 'visual-amber', 'visual-red']) for (const bg of ['page', 'surface', 'surface-hover']) {
+    const ratio = (luminance(values[bg])+.05)/(luminance(values[hue])+.05);
+    assert.ok(ratio >= 4.5, `${hue}/${bg}: ${ratio}`);
+  }
+});

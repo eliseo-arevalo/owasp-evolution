@@ -1,87 +1,220 @@
-// Hand-authored 24px glyphs share a 1.5px stroke, round caps and 2px corners.
-// Each schematic is one representative abuse case, rather than the full category.
-export const visuals = {
-  web: {
-    2025: {
-      A01: {
-        glyph: '<path d="M13 21H4V3h11v5M8 12h.01"/><rect x="12" y="13" width="9" height="8" rx="2"/><path d="M14 13v-3a3 3 0 0 1 3-3m3 3v1m-3 6v1"/>',
-        nodes: ['Usuario', 'API de objetos', 'Sin autorización', 'Datos ajenos'],
-        description: 'Un usuario cambia el identificador de un objeto en la API; el servidor omite la autorización y devuelve datos de otra persona.',
-      },
-      A02: {
-        glyph: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M6 8h12M6 16h12"/><rect x="8" y="6" width="3" height="4" rx="1"/><rect x="14" y="14" width="3" height="4" rx="1"/>',
-        nodes: ['Atacante', 'Servicio expuesto', 'Acceso por defecto', 'Control del servicio'],
-        description: 'Un atacante llega a un servicio innecesariamente expuesto que conserva acceso inseguro por defecto y obtiene control del servicio.',
-      },
-      A03: {
-        glyph: '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/><path d="M7 3v3h4m6 7v3h4M11 7h4a2 2 0 0 1 2 2v4M13 17H9a2 2 0 0 1-2-2v-4"/>',
-        nodes: ['Atacante', 'Dependencia', 'Build comprometido', 'Código malicioso'],
-        description: 'Un atacante compromete una dependencia que el proceso de construcción incorpora y distribuye, introduciendo código malicioso en la aplicación.',
-      },
-      A04: {
-        glyph: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3M12 14l-2 2 2 2-2 3m4-5h2"/>',
-        nodes: ['Observador', 'Tráfico sensible', 'Sin cifrado', 'Datos expuestos'],
-        description: 'Un observador intercepta tráfico que contiene datos sensibles; la falta de cifrado permite leerlos.',
-      },
-      A05: {
-        glyph: '<path d="M8 4H4v16h4m8-16h4v16h-4M8 12h8m-3-3 3 3-3 3"/>',
-        nodes: ['Atacante', 'Entrada de consulta', 'Datos como SQL', 'Consulta alterada'],
-        description: 'Un atacante envía datos que la aplicación concatena en SQL; el intérprete los ejecuta como instrucciones y altera la consulta.',
-      },
-      A06: {
-        glyph: '<rect x="3" y="3" width="7" height="6" rx="2"/><rect x="14" y="15" width="7" height="6" rx="2"/><path d="M6.5 9v9H14m-3-15h7a2 2 0 0 1 2 2v7M16 8l2-2 2 2"/>',
-        nodes: ['Usuario abusivo', 'Flujo de compra', 'Sin límite de uso', 'Descuento repetido'],
-        description: 'Un usuario repite un descuento en el flujo de compra porque el diseño no define ni exige un límite de uso, abusando de la lógica de negocio.',
-      },
-      A07: {
-        glyph: '<circle cx="8" cy="7" r="4"/><path d="M2 21v-2a6 6 0 0 1 10-4"/><circle cx="17" cy="13" r="3"/><path d="M17 16v5m0-2h3m-3-2h2"/>',
-        nodes: ['Atacante', 'Inicio de sesión', 'Sin límite ni MFA', 'Cuenta tomada'],
-        description: 'Un atacante prueba credenciales robadas en un inicio de sesión sin límites de intentos ni segundo factor y toma una cuenta.',
-      },
-      A08: {
-        glyph: '<path d="M13 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V11M13 3v6h6M8 14l3 3 5-5M17 3l4 4m0-4-4 4"/>',
-        nodes: ['Atacante', 'Datos serializados', 'Sin verificación', 'Estado manipulado'],
-        description: 'Un atacante modifica datos serializados que la aplicación acepta sin verificar su integridad o procedencia y altera un estado de confianza.',
-      },
-      A09: {
-        glyph: '<path d="M5 11a7 7 0 0 1 14 0v5l2 2H3l2-2v-2m5 7h4M3 3l18 18"/>',
-        nodes: ['Atacante', 'Operación sensible', 'Sin logs ni alerta', 'Abuso persistente'],
-        description: 'Un atacante abusa de una operación sensible; la falta de registros y alertas impide detectarlo y responder a tiempo, permitiendo que el abuso continúe.',
-      },
-      A10: {
-        glyph: '<path d="m10.3 4-7.8 14a2 2 0 0 0 1.8 3h15.4a2 2 0 0 0 1.8-3L13.7 4a2 2 0 0 0-3.4 0M12 9v5m0 3h.01"/>',
-        nodes: ['Atacante', 'Solicitud adversa', 'Fallo abierto', 'Acceso permitido'],
-        description: 'Un atacante provoca un error durante una comprobación de seguridad; el manejo de excepciones falla abierto y permite el acceso.',
-      },
-    },
+// Vendored Phosphor Icons duotone paths, MIT © 2023 Phosphor Icons.
+// Upstream core commit 2b75f3ad12b420c9504ef05df8d2564a28f8500e; see LICENSES/third-party.md.
+// Only secondary fill styling is adapted; outline geometry remains upstream.
+// Each diagram illustrates one representative scenario, not the entire OWASP category.
+export const visuals = { web: { 2025: {
+  A01: {
+    icon: "lock-key-open",
+    glyph: "<path class=\"icon-secondary\" d=\"M208,88H48a8,8,0,0,0-8,8V208a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V96A8,8,0,0,0,208,88Zm-80,72a20,20,0,1,1,20-20A20,20,0,0,1,128,160Z\"/><path d=\"M208,80H96V56a32,32,0,0,1,32-32c15.37,0,29.2,11,32.16,25.59a8,8,0,0,0,15.68-3.18C171.32,24.15,151.2,8,128,8A48.05,48.05,0,0,0,80,56V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm0,128H48V96H208V208Zm-80-96a28,28,0,0,0-8,54.83V184a8,8,0,0,0,16,0V166.83A28,28,0,0,0,128,112Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,128,152Z\"/>",
+    accent: "mint",
+    layout: "idor-cross-user",
+    description: "Un usuario cambia el identificador de un objeto en la API; el servidor omite la autorización y devuelve datos de otra persona.",
+    example: "GET /api/invoices/[[1043]]\nCookie: session=alice\nreturn invoices.find(id)",
+    fix: "Comprobar en el servidor que la factura pertenece al usuario de la sesión.",
   },
-};
+  A02: {
+    icon: "sliders",
+    glyph: "<path class=\"icon-secondary\" d=\"M80,136a24,24,0,1,1-24-24A24,24,0,0,1,80,136Zm48-72a24,24,0,1,0,24,24A24,24,0,0,0,128,64Zm72,80a24,24,0,1,0,24,24A24,24,0,0,0,200,144Z\"/><path d=\"M64,105V40a8,8,0,0,0-16,0v65a32,32,0,0,0,0,62v49a8,8,0,0,0,16,0V167a32,32,0,0,0,0-62Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,56,152Zm80-95V40a8,8,0,0,0-16,0V57a32,32,0,0,0,0,62v97a8,8,0,0,0,16,0V119a32,32,0,0,0,0-62Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,128,104Zm104,64a32.06,32.06,0,0,0-24-31V40a8,8,0,0,0-16,0v97a32,32,0,0,0,0,62v17a8,8,0,0,0,16,0V199A32.06,32.06,0,0,0,232,168Zm-32,16a16,16,0,1,1,16-16A16,16,0,0,1,200,184Z\"/>",
+    accent: "blue",
+    layout: "exposed-admin",
+    description: "Un atacante llega a un servicio innecesariamente expuesto que conserva acceso inseguro por defecto y obtiene control del servicio.",
+    example: "admin:\n  public: [[true]]\n  password: [[admin]]",
+    fix: "Desactivar el panel público y eliminar las credenciales predeterminadas.",
+  },
+  A03: {
+    icon: "package",
+    glyph: "<path class=\"icon-secondary\" d=\"M128,129.09V232a8,8,0,0,1-3.84-1l-88-48.18a8,8,0,0,1-4.16-7V80.18a8,8,0,0,1,.7-3.25Z\"/><path d=\"M223.68,66.15,135.68,18a15.88,15.88,0,0,0-15.36,0l-88,48.17a16,16,0,0,0-8.32,14v95.64a16,16,0,0,0,8.32,14l88,48.17a15.88,15.88,0,0,0,15.36,0l88-48.17a16,16,0,0,0,8.32-14V80.18A16,16,0,0,0,223.68,66.15ZM128,32l80.34,44-29.77,16.3-80.35-44ZM128,120,47.66,76l33.9-18.56,80.34,44ZM40,90l80,43.78v85.79L40,175.82Zm176,85.78h0l-80,43.79V133.82l32-17.51V152a8,8,0,0,0,16,0V107.55L216,90v85.77Z\"/>",
+    accent: "amber",
+    layout: "poisoned-dependency",
+    description: "Un atacante compromete una dependencia que el proceso de construcción incorpora y distribuye, introduciendo código malicioso en la aplicación.",
+    example: "# Unreviewed dependency update\nnpm install sample-tools@[[latest]]\nnpm run build",
+    fix: "Bloquear y revisar dependencias transitivas; verificar procedencia antes del build.",
+  },
+  A04: {
+    icon: "lock",
+    glyph: "<path class=\"icon-secondary\" d=\"M216,96V208a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V96a8,8,0,0,1,8-8H208A8,8,0,0,1,216,96Z\"/><path d=\"M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z\"/>",
+    accent: "blue",
+    layout: "password-comparison",
+    description: "Un hash MD5 sin sal permite comprobar contraseñas rápidamente si se filtra la base de datos; un hash adaptativo con sal dificulta esa comprobación.",
+    example: "password_hash = [[md5(password)]]",
+    fix: "Usar Argon2id con sal única y parámetros de coste adecuados.",
+  },
+  A05: {
+    icon: "code",
+    glyph: "<path class=\"icon-secondary\" d=\"M240,128l-48,40H64L16,128,64,88H192Z\"/><path d=\"M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.3Zm176,27.7-48-40a8,8,0,1,0-10.24,12.3L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z\"/>",
+    accent: "mint",
+    layout: "input-to-query",
+    description: "Un atacante envía datos que la aplicación concatena en SQL; el intérprete los ejecuta como instrucciones y altera la consulta.",
+    example: "name = request.query[\"name\"]\nsql = \"SELECT id FROM users\\n\" +\n      \"WHERE name = '\" + [[name]] + \"'\"\ndb.query(sql)",
+    fix: "Usar db.query(\"SELECT id FROM users WHERE name = ?\", [name]).",
+  },
+  A06: {
+    icon: "arrows-clockwise",
+    glyph: "<path class=\"icon-secondary\" d=\"M216,128a88,88,0,1,1-88-88A88,88,0,0,1,216,128Z\"/><path d=\"M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z\"/>",
+    accent: "amber",
+    layout: "coupon-reuse-loop",
+    description: "Un usuario repite un descuento en el flujo de compra porque el diseño no define ni exige un límite de uso, abusando de la lógica de negocio.",
+    example: "POST /cart/apply-coupon\n{\"code\": \"WELCOME10\"}\ncart.discount += [[10]]",
+    fix: "Definir un uso por cliente y aplicarlo de forma atómica en el servidor.",
+  },
+  A07: {
+    icon: "fingerprint",
+    glyph: "<path class=\"icon-secondary\" d=\"M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z\"/><path d=\"M72,128a134.63,134.63,0,0,1-14.16,60.47,8,8,0,1,1-14.32-7.12A118.8,118.8,0,0,0,56,128,71.73,71.73,0,0,1,83,71.8,8,8,0,1,1,93,84.29,55.76,55.76,0,0,0,72,128Zm56-8a8,8,0,0,0-8,8,184.12,184.12,0,0,1-23,89.1,8,8,0,0,0,14,7.76A200.19,200.19,0,0,0,136,128,8,8,0,0,0,128,120Zm0-32a40,40,0,0,0-40,40,8,8,0,0,0,16,0,24,24,0,0,1,48,0,214.09,214.09,0,0,1-20.51,92A8,8,0,1,0,146,226.83,230,230,0,0,0,168,128,40,40,0,0,0,128,88Zm0-64A104.11,104.11,0,0,0,24,128a87.76,87.76,0,0,1-5,29.33,8,8,0,0,0,15.09,5.33A103.9,103.9,0,0,0,40,128a88,88,0,0,1,176,0,282.24,282.24,0,0,1-5.29,54.45,8,8,0,0,0,6.3,9.4,8.22,8.22,0,0,0,1.55.15,8,8,0,0,0,7.84-6.45A298.37,298.37,0,0,0,232,128,104.12,104.12,0,0,0,128,24ZM94.4,152.17A8,8,0,0,0,85,158.42a151,151,0,0,1-17.21,45.44,8,8,0,0,0,13.86,8,166.67,166.67,0,0,0,19-50.25A8,8,0,0,0,94.4,152.17ZM128,56a72.85,72.85,0,0,0-9,.56,8,8,0,0,0,2,15.87A56.08,56.08,0,0,1,184,128a252.12,252.12,0,0,1-1.92,31A8,8,0,0,0,189,168a8.39,8.39,0,0,0,1,.06,8,8,0,0,0,7.92-7,266.48,266.48,0,0,0,2-33A72.08,72.08,0,0,0,128,56Zm57.93,128.25a8,8,0,0,0-9.75,5.75c-1.46,5.69-3.15,11.4-5,17a8,8,0,0,0,5,10.13,7.88,7.88,0,0,0,2.55.42,8,8,0,0,0,7.58-5.46c2-5.92,3.79-12,5.35-18.05A8,8,0,0,0,185.94,184.26Z\"/>",
+    accent: "blue",
+    layout: "credential-fan-in",
+    description: "Un atacante prueba credenciales robadas en un inicio de sesión sin límites de intentos ni segundo factor y toma una cuenta.",
+    example: "login:\n  rate_limit: [[off]]\n  mfa: [[disabled]]",
+    fix: "Limitar intentos por cuenta y origen; exigir MFA.",
+  },
+  A08: {
+    icon: "file-arrow-down",
+    glyph: "<path class=\"icon-secondary\" d=\"M208,88H152V32Z\"/><path d=\"M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-42.34-61.66a8,8,0,0,1,0,11.32l-24,24a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L120,164.69V120a8,8,0,0,1,16,0v44.69l10.34-10.35A8,8,0,0,1,157.66,154.34Z\"/>",
+    accent: "amber",
+    layout: "unsigned-update",
+    description: "Una aplicación descarga e instala una actualización sin verificar su firma; un archivo sustituido se ejecuta como software de confianza.",
+    example: "update = download(update_url)\n[[install(update)]]",
+    fix: "Verificar la firma con una clave de confianza antes de instalar.",
+  },
+  A09: {
+    icon: "bell-slash",
+    glyph: "<path class=\"icon-secondary\" d=\"M208,192H48a8,8,0,0,1-6.88-12C47.71,168.6,56,139.81,56,104a72,72,0,0,1,144,0c0,35.82,8.3,64.6,14.9,76A8,8,0,0,1,208,192Z\"/><path d=\"M53.92,34.62A8,8,0,1,0,42.08,45.38L58.82,63.8A79.59,79.59,0,0,0,48,104c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.8a40,40,0,0,0,78.4,0h15.44l19.44,21.38a8,8,0,1,0,11.84-10.76ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a63.65,63.65,0,0,1,6.26-27.62L168.09,184Zm166-4.73a8.13,8.13,0,0,1-2.93.55,8,8,0,0,1-7.44-5.08C196.35,156.19,192,129.75,192,104A64,64,0,0,0,96.43,48.31a8,8,0,0,1-7.9-13.91A80,80,0,0,1,208,104c0,35.35,8.05,58.59,10.52,64.88A8,8,0,0,1,214,179.25Z\"/>",
+    accent: "mint",
+    layout: "silent-timeline",
+    description: "Un atacante abusa de una operación sensible; la falta de registros y alertas impide detectarlo y responder a tiempo, permitiendo que el abuso continúe.",
+    example: "if not valid_login(user):\n    [[return 401]]\n# No security event or alert",
+    fix: "Registrar fallos sin secretos y alertar sobre patrones sospechosos.",
+  },
+  A10: {
+    icon: "warning",
+    glyph: "<path class=\"icon-secondary\" d=\"M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z\"/><path d=\"M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z\"/>",
+    accent: "red",
+    layout: "fail-open-branch",
+    description: "Un atacante provoca un error durante una comprobación de seguridad; el manejo de excepciones falla abierto y permite el acceso.",
+    example: "try: return authorize(user)\nexcept TimeoutError:\n    [[return True]]",
+    fix: "Ante un timeout, denegar el acceso y registrar el fallo de autorización.",
+  },
+} } };
 
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const getVisual = (family, year, id) => visuals[family]?.[year]?.[id];
 
-// Shared markup keeps the interactive panel and no-JavaScript pages identical.
+// Tiles reserve geometry before paint; matrix icons use their own 16px column.
 export function iconSVG(family, year, id, title = '', className = 'risk-icon') {
   const visual = getVisual(family, year, id);
   if (!visual) return '';
-  const titleMarkup = title ? `<title>${escape(title)}</title>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="${escape(className)}" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${title ? 'role="img"' : 'aria-hidden="true"'} focusable="false">${titleMarkup}${visual.glyph}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="${escape(className)} visual-${visual.accent}" data-icon="${visual.icon}" viewBox="0 0 256 256" width="40" height="40" fill="currentColor" ${title ? 'role="img"' : 'aria-hidden="true"'} focusable="false">${title ? `<title>${escape(title)}</title>` : ''}<rect class="icon-tile" width="256" height="256" rx="64"/><g transform="translate(28 28) scale(.78125)">${visual.glyph}</g></svg>`;
+}
+
+// Layout helpers share typography and motion, never the attack topology.
+function drawing(t) {
+  let step = 0;
+  const text = (x, y, label, cls = 'attack-label', anchor = 'middle') => `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${escape(t(label))}</text>`;
+  const group = content => `<g class="attack-node" style="--step:${step++ % 6}">${content}</g>`;
+  const card = (x, y, w, h, labels, accent = false) => group(`<rect class="attack-box${accent ? ' attack-hot' : ''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${labels.map((label, i) => text(x + w / 2, y + h / 2 + 4 + (i - (labels.length - 1) / 2) * 16, label)).join('')}`);
+  const path = (d, muted = false) => `<path class="attack-path${muted ? ' attack-muted' : ''}" style="--step:${step++ % 6}" d="${d}" pathLength="1"/>`;
+  const person = (x, y, label, accent = false) => group(`<circle class="attack-box${accent ? ' attack-hot' : ''}" cx="${x}" cy="${y}" r="11"/><path class="attack-outline" d="M${x - 19} ${y + 31}v-5a19 19 0 0 1 38 0v5"/>${text(x, y + 48, label)}`);
+  return { text, group, card, path, person };
 }
 
 export function diagramSVG(family, year, id, t = text => text) {
   const visual = getVisual(family, year, id);
   if (!visual) return '';
-  const roles = ['Actor', 'Entrada', 'Fallo', 'Impacto'];
-  const positions = [[10, 22], [180, 22], [180, 98], [10, 98]];
-  // A clockwise path keeps labels readable at the narrowest dock width.
-  const arrows = ['M140 45h34m-4-4 4 4-4 4', 'M265 68v24m-4-4 4 4 4-4', 'M180 121h-34m4-4-4 4 4 4'];
-  const paths = arrows.map((d, i) => `<path class="attack-path" style="--step:${i}" d="${d}" pathLength="1"/>`).join('');
-  const nodes = positions.map(([x, y], i) => `<g class="attack-node" style="--step:${i}" transform="translate(${x} ${y})"><text class="attack-role" x="0" y="-5">${i + 1} · ${escape(t(roles[i]))}</text><rect width="130" height="46" rx="4"/><text class="attack-label" x="65" y="27" text-anchor="middle">${escape(t(visual.nodes[i]))}</text></g>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="attack-diagram" viewBox="0 0 320 160" width="320" height="160" role="img" focusable="false"><title>${escape(id)} · ${escape(t('Cómo funciona el ataque'))}</title><desc>${escape(t(visual.description))}</desc>${paths}${nodes}</svg>`;
+  const { text, group, card, path, person } = drawing(t);
+  let content = '';
+  switch (visual.layout) {
+    case 'idor-cross-user':
+      content = person(32, 24, 'Alice') + person(286, 120, 'Bob', true)
+        + card(89, 12, 218, 48, ['GET /invoices/1042 → 1043'], true)
+        + path('M52 28h30m-5-4 5 4-5 4')
+        + card(90, 88, 148, 46, ['API sin autorización'])
+        + path('M167 60v22m-4-5 4 5 4-5')
+        + card(90, 151, 148, 30, ['Factura de Bob'], true)
+        + path('M164 134v11m-4-5 4 5 4-5')
+        + path('M90 166H32V80m-4 5 4-5 4 5');
+      break;
+    case 'exposed-admin':
+      content = group(`<rect class="attack-box" x="80" y="15" width="230" height="166" rx="10"/><path class="attack-outline" d="M80 43h230"/>${text(93, 33, '/admin', 'attack-code', 'start')}`)
+        + person(30, 86, 'Visitante') + path('M51 96h23m-5-4 5 4-5 4')
+        + card(99, 59, 192, 45, ['admin / admin'], true)
+        + path('M195 104v16m-4-5 4 5 4-5')
+        + card(99, 127, 192, 36, ['Control del servicio'], true);
+      break;
+    case 'poisoned-dependency':
+      content = card(8, 14, 96, 40, ['App']) + card(8, 76, 96, 40, ['sample-tools'])
+        + path('M56 54v16m-4-5 4 5 4-5', true)
+        + card(8, 138, 125, 42, ['tiny-parser', 'Comprometido'], true)
+        + path('M56 116v16m-4-5 4 5 4-5')
+        + card(185, 137, 125, 42, ['Build + artefacto'], true)
+        + path('M133 159h46m-5-4 5 4-5 4')
+        + group(`${text(243, 32, 'Dependencia transitiva', 'attack-role')}<path class="attack-outline" d="M245 68v56m-4-5 4 5 4-5"/>${text(243, 54, 'Código heredado')}`);
+      break;
+    case 'password-comparison':
+      content = card(9, 12, 302, 38, ['Base de contraseñas filtrada'])
+        + path('M160 50v18H80v17m-4-5 4 5 4-5') + path('M160 68h80v17m-4-5 4 5 4-5', true)
+        + card(9, 91, 143, 46, ['MD5 sin sal'], true) + card(168, 91, 143, 46, ['Argon2id + sal'])
+        + group(`${text(80, 161, 'Pruebas rápidas', 'attack-accent')}${text(240, 161, 'Coste adaptativo')}${text(160, 184, 'Misma contraseña · distinta protección', 'attack-role')}`);
+      break;
+    case 'input-to-query':
+      content = card(9, 12, 302, 38, ['name: O\'Neil'], true)
+        + path('M160 50v26m-4-5 4 5 4-5')
+        + group(`<rect class="attack-box" x="9" y="83" width="302" height="66" rx="8"/>${text(23, 105, 'SELECT id FROM users', 'attack-code', 'start')}<text class="attack-code" x="23" y="130">WHERE name = '<tspan class="attack-accent">O'Neil</tspan>'</text>`)
+        + path('M160 149v14m-4-5 4 5 4-5')
+        + group(text(160, 184, 'La entrada cambia la sintaxis', 'attack-accent'));
+      break;
+    case 'coupon-reuse-loop':
+      content = card(9, 24, 112, 44, ['Carrito']) + card(197, 24, 114, 44, ['WELCOME10'], true)
+        + path('M121 46h70m-5-4 5 4-5 4')
+        + card(94, 124, 145, 44, ['Descuento +10'], true)
+        + path('M254 68v78h-9m5-4-5 4 5 4')
+        + path('M94 146H65V74m-4 5 4-5 4 5')
+        + group(`${text(160, 91, 'Repetir sin límite', 'attack-accent')}${text(160, 187, 'Falta la regla: un uso por cliente', 'attack-role')}`);
+      break;
+    case 'credential-fan-in':
+      content = card(9, 12, 89, 30, ['alice : •••']) + card(9, 60, 89, 30, ['bob : •••']) + card(9, 108, 89, 30, ['carol : •••'])
+        + path('M98 27h20v48h15m-5-4 5 4-5 4') + path('M98 75h35m-5-4 5 4-5 4') + path('M98 123h20V75', true)
+        + card(140, 48, 171, 55, ['/login', 'Sin límite ni MFA'], true)
+        + path('M225 103v30m-4-5 4 5 4-5')
+        + card(140, 140, 171, 36, ['Cuenta tomada'], true)
+        + group(text(64, 170, 'Credenciales robadas', 'attack-role'));
+      break;
+    case 'unsigned-update':
+      content = group(`<path class="attack-box attack-hot" d="M16 15h64l24 24v74H16Z"/><path class="attack-outline" d="M80 15v24h24"/>${text(60, 68, 'update.bin', 'attack-code')}${text(60, 91, 'Modificado', 'attack-accent')}`)
+        + path('M104 65h35m-5-4 5 4-5 4')
+        + group(`<path class="attack-boundary" d="M150 8v111"/>${text(163, 35, 'Firma omitida', 'attack-accent', 'start')}`)
+        + card(178, 51, 132, 49, ['Instalar'], true)
+        + path('M244 100v38m-4-5 4 5 4-5')
+        + card(99, 145, 211, 34, ['Código no verificado'], true)
+        + group(text(62, 146, 'Confianza', 'attack-role'));
+      break;
+    case 'silent-timeline':
+      content = path('M25 75h278m-5-4 5 4-5 4')
+        + group(`<circle class="attack-dot" cx="42" cy="75" r="6"/>${text(42, 26, '09:00', 'attack-code')}${text(42, 49, 'Intentos')}`)
+        + group(`<circle class="attack-dot" cx="151" cy="75" r="6"/>${text(151, 26, '09:05', 'attack-code')}${text(151, 49, 'Acceso')}`)
+        + group(`<circle class="attack-dot" cx="274" cy="75" r="6"/>${text(274, 26, '09:10', 'attack-code')}${text(274, 49, 'Abuso')}`)
+        + path('M42 90v28m109-28v28m123-28v28', true)
+        + card(9, 125, 302, 48, ['Sin eventos → sin alertas', 'La respuesta nunca comienza'], true);
+      break;
+    case 'fail-open-branch':
+      content = card(65, 8, 190, 34, ['Comprobar permiso'])
+        + path('M160 42v24m-4-5 4 5 4-5')
+        + group(`<path class="attack-box" d="m160 72 66 30-66 30-66-30Z"/>${text(160, 106, '¿Respuesta?')}`)
+        + path('M94 102H49v34m-4-5 4 5 4-5', true)
+        + path('M226 102h47v34m-4-5 4 5 4-5')
+        + group(`${text(43, 84, 'No autorizado', 'attack-role')}${text(278, 84, 'Timeout', 'attack-accent')}`)
+        + card(9, 145, 122, 34, ['Denegar']) + card(189, 145, 122, 34, ['Permitir'], true);
+      break;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="attack-diagram visual-${visual.accent}" data-layout="${visual.layout}" viewBox="0 0 320 196" width="320" height="196" role="img" focusable="false"><title>${escape(id)} · ${escape(t('Cómo funciona el ataque'))}</title><desc>${escape(t(visual.description))}</desc>${content}</svg>`;
 }
 
+// Mark only authored ranges; all code is escaped and remains selectable real text.
+function exampleCode(code) {
+  return code.split(/(\[\[[^]*?\]\])/g).map(part => part.startsWith('[[') ? `<mark>${escape(part.slice(2, -2))}</mark>` : escape(part)).join('');
+}
+
+// One renderer keeps live detail and no-JavaScript category pages identical.
 export function attackSectionHTML(family, year, id, t = text => text) {
   const visual = getVisual(family, year, id);
   if (!visual) return '';
-  return `<section class="detail-section attack-section"><h2>${escape(t('Cómo funciona el ataque'))}</h2>${diagramSVG(family, year, id, t)}<p class="attack-description">${escape(t(visual.description))}</p></section>`;
+  return `<section class="detail-section attack-section visual-${visual.accent}"><h2>${escape(t('Cómo funciona el ataque'))}</h2><div class="attack-explainer"><div class="attack-flow">${diagramSVG(family, year, id, t)}<p class="attack-description">${escape(t(visual.description))}</p></div><div class="attack-example"><h3>${escape(t('Ejemplo concreto'))} <span>${escape(t('Vulnerable'))}</span></h3><pre><code>${exampleCode(visual.example)}</code></pre><p class="attack-fix"><strong>${escape(t('Corrección:'))}</strong> ${escape(t(visual.fix))}</p></div></div></section>`;
 }

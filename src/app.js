@@ -251,14 +251,12 @@ function renderTimeline(family, ease = false) {
 
       const rank = node('span', 'risk-rank', String(risk.rank).padStart(2, '0'));
       const icon = iconSVG(family.id, edition.year, risk.id, '', 'risk-icon matrix-icon');
-      if (icon) {
-        rank.classList.add('has-icon');
-        // Keep the same 22px rank column and all of the name's existing width.
-        rank.insertAdjacentHTML('beforeend', icon);
-      }
+      if (icon) button.classList.add('has-icon');
       const copy = node('span', 'risk-copy');
       copy.append(node('span', 'risk-name', risk.name));
-      button.append(rank, copy);
+      button.append(rank);
+      if (icon) button.insertAdjacentHTML('beforeend', icon);
+      button.append(copy);
       button.addEventListener('click', (event) => {
         // A double click commits once; keyboard activation has detail === 0.
         if (event.detail > 1) return;

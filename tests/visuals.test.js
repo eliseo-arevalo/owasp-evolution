@@ -8,15 +8,16 @@ import { pathFor } from '../src/routes.js';
 import { exportMarkdown } from '../src/export.js';
 
 const pilot = catalog.families.web.editions.find(edition => edition.year === 2025).items;
-test('every Web 2025 category has a unique consistent hand-authored glyph and four-node attack', () => {
+test('every Web 2025 category has distinct Phosphor duotone paths and attack topology', () => {
   assert.deepEqual(Object.keys(visuals.web[2025]), pilot.map(item => item.id));
   assert.equal(new Set(pilot.map(item => getVisual('web', 2025, item.id).glyph)).size, 10);
+  assert.equal(new Set(pilot.map(item => getVisual('web', 2025, item.id).layout)).size, 10);
+  assert.equal(new Set(pilot.map(item => diagramSVG('web', 2025, item.id).replace(/<title>[^]*?<\/desc>/, ''))).size, 10);
   for (const { id, name } of pilot) {
-    const visual = getVisual('web', 2025, id);
-    assert.equal(visual.nodes.length, 4);
     const icon = iconSVG('web', 2025, id, name);
-    assert.match(icon, /viewBox="0 0 24 24"/);
-    assert.match(icon, /stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/);
+    assert.match(icon, /viewBox="0 0 256 256"/);
+    assert.match(icon, /class="icon-secondary"/);
+    assert.match(icon, /class="icon-tile"/);
     assert.match(icon, /role="img"/);
     assert.ok(icon.includes(`<title>${name.replaceAll('&', '&amp;')}</title>`));
     assert.match(iconSVG('web', 2025, id), /aria-hidden="true"/);
@@ -24,24 +25,44 @@ test('every Web 2025 category has a unique consistent hand-authored glyph and fo
   }
 });
 
-test('all diagram labels, roles, titles and accessible descriptions translate to English', () => {
-  for (const { id } of pilot) {
+test('every pilot has bilingual explanations and fixes with short selectable vulnerable code', () => {
+  for (const { id, source } of pilot) {
     const visual = getVisual('web', 2025, id);
-    for (const text of [...visual.nodes, visual.description, 'Entrada', 'Fallo', 'Impacto']) {
-      assert.notEqual(translate(text, 'en'), text, `${id}: missing English for ${text}`);
-    }
+    assert.ok(visual.example.split('\n').length <= 4, id);
+    assert.match(visual.example, /\[\[[^]+?\]\]/);
+    assert.notEqual(translate(visual.description, 'en'), visual.description);
+    assert.notEqual(translate(visual.fix, 'en'), visual.fix);
     for (const language of ['en', 'es']) {
       const t = text => translate(text, language);
       const svg = diagramSVG('web', 2025, id, t);
+      assert.doesNotMatch(svg, />undefined<|>null<|>NaN</);
       assert.match(svg, /role="img"/);
-      assert.match(svg, /viewBox="0 0 320 160"/);
+      assert.match(svg, /viewBox="0 0 320 196"/);
+      assert.ok(svg.includes(`data-layout="${visual.layout}"`));
       assert.ok(svg.includes(`<title>${id} · ${t('Cómo funciona el ataque')}</title>`));
       assert.ok(svg.includes(`<desc>${t(visual.description)}</desc>`));
-      assert.equal((svg.match(/class="attack-node"/g) || []).length, 4);
-      assert.equal((svg.match(/class="attack-path"/g) || []).length, 3);
-      for (const label of visual.nodes) assert.ok(svg.includes(t(label)));
+      const section = attackSectionHTML('web', 2025, id, t);
+      assert.match(section, /<pre><code>[^]*<mark>[^]+?<\/mark>[^]*<\/code><\/pre>/);
+      assert.ok(section.includes(t('Ejemplo concreto')));
+      assert.ok(section.includes(t('Corrección:')));
+      assert.ok(section.includes(t(visual.fix).replaceAll('"', '&quot;')));
+      assert.match(source, new RegExp(`owasp.org/Top10/2025/${id}_2025-`));
     }
+    assert.equal(attackSectionHTML('web', 2025, id, text => translate(text, 'en')).match(/<pre>([^]*?)<\/pre>/)[1], attackSectionHTML('web', 2025, id).match(/<pre>([^]*?)<\/pre>/)[1]);
   }
+});
+
+test('Phosphor attribution and complete MIT license ship with the build', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const read = path => readFile(new URL(path, import.meta.url), 'utf8');
+  assert.match(await read('../README.md'), /Phosphor Icons[^]*licencia MIT/);
+  const note = await read('../LICENSES/third-party.md');
+  for (const visual of Object.values(visuals.web[2025])) assert.ok(note.includes(`\`${visual.icon}\``));
+  assert.match(note, /2b75f3ad12b420c9504ef05df8d2564a28f8500e/);
+  const license = await read('../LICENSES/phosphor-icons-MIT.txt');
+  assert.match(license, /Copyright \(c\) 2023 Phosphor Icons/);
+  assert.match(license, /Permission is hereby granted, free of charge/);
+  assert.equal(await read('../dist/LICENSES/phosphor-icons-MIT.txt'), license);
 });
 
 test('every pilot category prerenders accessible SVG and explanatory text before prevention in both languages', () => {
@@ -54,6 +75,10 @@ test('every pilot category prerenders accessible SVG and explanatory text before
     assert.ok(article.includes(`<desc>${t(getVisual('web', 2025, id).description)}</desc>`));
     assert.ok(article.indexOf(t('Cómo funciona el ataque')) < article.indexOf(t('Prevención prioritaria')));
     assert.match(article, /<p class="attack-description">/);
+    assert.match(article, /<pre><code>[^]*<mark>/);
+    assert.ok(article.includes(t('Corrección:')));
+    assert.ok(article.includes(t(getVisual('web', 2025, id).fix).replaceAll('"', '&quot;')));
+    assert.ok(article.includes(pilot.find(item => item.id === id).source));
   }
   for (const family of Object.values(catalog.families)) for (const edition of family.editions) {
     if (family.id === 'web' && edition.year === 2025) continue;

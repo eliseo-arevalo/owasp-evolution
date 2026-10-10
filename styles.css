@@ -874,32 +874,61 @@ html:not(.js) #matrix-page, html:not(.js) .header-meta { display: none; }
 .booting[data-initial-dock='left'] .timeline-panel { grid-column: 2; }
 .booting[data-initial-dock='right'] .explorer-shell { grid-template-columns: minmax(0, 1fr) clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)); }
 
-/* The pilot's glyphs use the existing rank column; names keep their width. */
-.risk-icon { display: block; flex: none; }
-.risk-rank.has-icon { position: relative; transform: translateY(6px); font-size: 11px; line-height: 11px; text-align: center; }
-.matrix-icon { position: absolute; top: -12px; left: 5px; width: 12px; height: 12px; color: var(--quiet); }
-.detail-heading { display: flex; align-items: flex-start; gap: 10px; }
-.detail-icon { flex: none; padding-top: 1px; color: var(--muted); }
-.detail-icon .risk-icon { width: 28px; height: 28px; }
-#prerender h1 .risk-icon { display: inline-block; vertical-align: middle; margin-right: 10px; width: 32px; height: 32px; }
-.attack-section { max-width: 420px; padding-block: 16px; }
-.attack-section h2 { margin-bottom: 8px; }
-.attack-diagram { display: block; width: 100%; height: auto; aspect-ratio: 2; overflow: visible; }
-.attack-node rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
-.attack-role { fill: var(--quiet); font-family: 'Geist Mono', monospace; font-size: 11px; }
+/* Phosphor duotone: one category accent, neutral tiles, ink outlines. */
+:root { --visual-mint: #70d6b0; --visual-blue: #80bfff; --visual-amber: #f0bd70; --visual-red: #ff8a80; }
+:root[data-theme='light'] { --visual-mint: #146448; --visual-blue: #205d98; --visual-amber: #80500d; --visual-red: #aa3027; }
+.visual-mint { --visual-accent: var(--visual-mint); }
+.visual-blue { --visual-accent: var(--visual-blue); }
+.visual-amber { --visual-accent: var(--visual-amber); }
+.visual-red { --visual-accent: var(--visual-red); }
+.risk-icon { display: block; flex: none; width: 40px; height: 40px; color: var(--ink); }
+.icon-tile { fill: var(--surface-hover); }
+.icon-secondary { fill: var(--visual-accent); }
+/* Reclaim padding and unused trailing track so names retain their original width. */
+.risk-focus.has-icon { grid-template-columns: 16px 16px minmax(0, 1fr); gap: 5px; padding-inline: 4px; }
+.matrix-icon { width: 16px; height: 16px; }
+.detail-heading { display: flex; align-items: flex-start; gap: 12px; }
+.detail-icon { flex: none; }
+.detail-icon .risk-icon { width: 48px; height: 48px; }
+#prerender h1 .risk-icon { display: inline-block; vertical-align: middle; margin-right: 10px; }
+.detail-attack { min-width: 0; container-type: inline-size; }
+.attack-section { padding-block: 16px; min-width: 0; }
+.attack-section h2 { margin-bottom: 12px; }
+.attack-explainer { display: grid; gap: 14px; align-items: start; }
+.attack-flow { min-width: 0; max-width: 440px; }
+.attack-diagram { display: block; width: 100%; height: auto; aspect-ratio: 320 / 196; overflow: hidden; }
+.attack-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.25; }
+.attack-hot { fill: var(--surface); stroke: var(--visual-accent); stroke-width: 1.5; }
+.attack-outline { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .attack-label { fill: var(--ink); font-family: Geist, system-ui, sans-serif; font-size: 11px; font-weight: 500; }
-.attack-path { fill: none; stroke: var(--continues); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.attack-description { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-/* Finishes in under half a second; geometry is reserved even during the reveal. */
-.detail-modal[open] .attack-node { animation: attack-node-in var(--motion-modal) var(--ease) both; animation-delay: calc(var(--step) * var(--motion-fast) / 2); }
-.detail-modal[open] .attack-path { stroke-dasharray: 1; animation: attack-path-in var(--motion) var(--ease) both; animation-delay: calc((var(--step) + 1) * var(--motion-fast) / 2); }
+.attack-role { fill: var(--muted); font-family: Geist, system-ui, sans-serif; font-size: 11px; }
+.attack-code { fill: var(--ink); font-family: 'Geist Mono', monospace; font-size: 11px; }
+.attack-accent { fill: var(--visual-accent); }
+.attack-dot { fill: var(--visual-accent); }
+.attack-boundary { fill: none; stroke: var(--visual-accent); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.attack-path { fill: none; stroke: var(--visual-accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.attack-muted { stroke: var(--muted); }
+.attack-description { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.attack-example { min-width: 0; padding: 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; }
+.attack-example h3 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; margin: 0 0 10px; color: var(--ink); font-size: 12px; font-weight: 500; }
+.attack-example h3 span { color: var(--visual-accent); font-family: 'Geist Mono', monospace; font-size: 11px; }
+.attack-example pre { margin: 0; color: var(--ink); font: 11px/1.7 'Geist Mono', monospace; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
+.attack-example code { font: inherit; }
+.attack-example mark { color: var(--visual-accent); background: transparent; border-bottom: 1px solid currentColor; font-weight: 500; }
+.attack-fix { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.attack-fix strong { color: var(--visual-accent); font-weight: 500; }
+@container (min-width: 640px) {
+  .attack-explainer { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); max-width: 960px; gap: 24px; }
+}
+/* Maximum delay 200ms + 220ms duration; no geometry changes during reveal. */
+.detail-modal[open] .attack-node { animation: attack-node-in var(--motion-modal) var(--ease) both; animation-delay: calc(var(--step) * var(--motion-fast) / 3); }
+.detail-modal[open] .attack-path { stroke-dasharray: 1; animation: attack-path-in var(--motion-modal) var(--ease) both; animation-delay: calc(var(--step) * var(--motion-fast) / 3); }
 @keyframes attack-node-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes attack-path-in { from { stroke-dashoffset: 1; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
-@media (max-width: 400px) {
+@media (max-width: 390px) {
   .matrix-icon { display: none; }
-  .risk-rank.has-icon { transform: none; font-size: 11px; line-height: normal; text-align: left; }
-  .detail-icon .risk-icon { width: 24px; height: 24px; }
+  .risk-focus.has-icon { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; padding-inline: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .detail-modal[open] .attack-node, .detail-modal[open] .attack-path { animation: none; }
+  .detail-modal[open] .attack-node, .detail-modal[open] .attack-path { animation: none; stroke-dasharray: none; }
 }

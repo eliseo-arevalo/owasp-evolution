@@ -100,7 +100,7 @@ test('docked detail slides in its dock direction and reverses on close', async (
   assert.doesNotMatch(css, /\.detail-modal::backdrop/);
 });
 
-test('chrome stays neutral: color only on connections and lineage tints', async () => {
+test('chrome stays neutral: color only on connections, lineage and category visuals', async () => {
   const css = await readFile(cssUrl, 'utf8');
   const hexes = new Set([...css.matchAll(/#[0-9a-f]{3,8}\b/gi)].map(([hex]) => hex.toLowerCase()));
   const neutral = (hex) => {
@@ -109,7 +109,7 @@ test('chrome stays neutral: color only on connections and lineage tints', async 
     return new Set(channels).size === 1;
   };
   const colored = [...hexes].filter((hex) => !neutral(hex));
-  assert.deepEqual(colored.sort(), ['#197454', '#286ca8', '#70d6b0', '#80bfff', '#895b16', '#f0bd70']);
+  assert.deepEqual(colored.sort(), ['#146448', '#197454', '#205d98', '#286ca8', '#70d6b0', '#80500d', '#80bfff', '#895b16', '#aa3027', '#f0bd70', '#ff8a80']);
   for (const selector of ['.risk-detail', '.detail-trigger', '.source-link', '.family-tab', '.edition-status']) {
     assert.doesNotMatch(rule(css, selector), /--continues|--renamed|--merged/);
   }

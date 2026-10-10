@@ -37,3 +37,7 @@ Los datos enlazan a documentación y repositorios oficiales de OWASP. Las explic
 ## Licencia
 
 Código bajo MIT, véase LICENSE. Las fuentes y denominaciones OWASP pertenecen a sus titulares.
+
+Los diez iconos Web 2025 usan paths SVG de [Phosphor Icons](https://github.com/phosphor-icons/core), peso duotone, © 2023 Phosphor Icons, licencia MIT. Se incluyen únicamente los paths necesarios en `src/visuals.js`, sin dependencia de ejecución; los rellenos secundarios usan un acento por categoría y tiles neutros. Véanse la [atribución y versión fijada](LICENSES/third-party.md) y la [licencia MIT original](LICENSES/phosphor-icons-MIT.txt), también incluidas en el build.
+
+Cada categoría Web 2025 incluye una composición de ataque propia y un ejemplo educativo de hasta cuatro líneas, seleccionable como `<pre><code>`, con el punto vulnerable resaltado y una corrección EN/ES. Los ejemplos permanecen en inglés y se prerenderizan junto con los diagramas accesibles. El movimiento finaliza en 420 ms como máximo; reduced motion muestra el resultado al instante.

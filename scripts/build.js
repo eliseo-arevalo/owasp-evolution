@@ -7,7 +7,7 @@ const output = new URL('../dist/', import.meta.url);
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
-for (const entry of ['index.html', 'styles.css', 'src', 'assets', 'manifest.webmanifest']) {
+for (const entry of ['index.html', 'styles.css', 'src', 'assets', 'manifest.webmanifest', 'LICENSES']) {
   await cp(new URL(`../${entry}`, import.meta.url), new URL(entry, output), { recursive: true });
 }
 
