@@ -142,7 +142,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
     for (const language of ['en', 'es']) for (const item of pilot) {
       await mobile.goto(route(item.id, language)); await mobile.locator('#detail-modal[open]').waitFor();
       await fits(mobile, `390 ${language} ${item.id}`);
-      assert.equal(await mobile.locator('.matrix-icon').first().evaluate(el => getComputedStyle(el).display), 'none');
+      assert.equal(await mobile.locator('.matrix-icon').first().evaluate(el => getComputedStyle(el).display), 'block');
     }
     await mobile.goto(route('A01', 'es')); await mobile.evaluate(() => document.fonts.ready);
     await mobile.screenshot({ path: '/workspace/tmp/owasp-visuals2-detail-a01-light-390.png', fullPage: true });

@@ -753,7 +753,8 @@ function sectionNav(hasAttack) {
   const tabs = node('div', 'detail-tabs');
   nav.append(tabs);
   for (const [id, label] of [['overview', 'Resumen'], ...(hasAttack ? [['attack', 'Ataque'], ['example', 'Ejemplo']] : []), ['prevention', 'Prevención'], ['lineage', 'Linaje'], ['sources', 'Fuentes']]) {
-    const link = node('a', '', t(label));
+    const link = node('a', '', t(label === 'Prevención' ? 'Prevenir' : label));
+    link.setAttribute('aria-label', t(label));
     link.href = `#detail-${id}`;
     link.addEventListener('click', event => {
       event.preventDefault();
@@ -769,14 +770,6 @@ function trackSections(body) {
   const on = (element, type, handler) => element.addEventListener(type, handler, { passive: true, signal: listeners.signal });
   let requestedSection = null;
   const nav = body.querySelector('.detail-section-nav');
-  const tabs = nav.querySelector('.detail-tabs');
-  const fadeEdges = () => {
-    nav.classList.toggle('has-left-overflow', tabs.scrollLeft > 1);
-    nav.classList.toggle('has-right-overflow', tabs.scrollLeft + tabs.clientWidth < tabs.scrollWidth - 1);
-  };
-  on(tabs, 'scroll', fadeEdges);
-  const tabObserver = new ResizeObserver(fadeEdges);
-  tabObserver.observe(tabs);
   const links = [...nav.querySelectorAll('a')];
   const sections = links.map(link => body.querySelector(link.getAttribute('href')));
   const update = () => {
@@ -790,14 +783,7 @@ function trackSections(body) {
       ?? sections.filter(section => section.getBoundingClientRect().top <= edge).at(-1) ?? sections[0];
     for (const link of links) {
       if (link.hash === `#${active.id}`) {
-        const changed = !link.hasAttribute('aria-current');
         link.setAttribute('aria-current', 'location');
-        if (changed) {
-          const left = link.offsetLeft, right = left + link.offsetWidth;
-          if (left < tabs.scrollLeft + 12) tabs.scrollLeft = Math.max(0, left - 12);
-          else if (right > tabs.scrollLeft + tabs.clientWidth - 12) tabs.scrollLeft = right - tabs.clientWidth + 12;
-          fadeEdges();
-        }
       }
       else link.removeAttribute('aria-current');
     }
@@ -818,7 +804,7 @@ function trackSections(body) {
   on(body, 'touchstart', manualScroll);
   on(body, 'pointerdown', event => { if (!event.target.closest('.detail-section-nav')) manualScroll(); });
   on(body, 'keydown', event => { if (['PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) manualScroll(); });
-  stopSectionTracking = () => { listeners.abort(); tabObserver.disconnect(); };
+  stopSectionTracking = () => { listeners.abort(); };
   requestAnimationFrame(update);
 }
 

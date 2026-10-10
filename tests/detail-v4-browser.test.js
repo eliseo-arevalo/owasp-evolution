@@ -225,7 +225,7 @@ test('Chrome v4: all Web + LLM editions, 360/420/520 dock widths + fullscreen, b
           return {
             centerError: Math.abs(icon.y + icon.height / 2 - block.y - block.height / 2),
             tileSize: icon.width, tileHeight: icon.height, lines: title.height / parseFloat(getComputedStyle(document.querySelector('#detail-title')).lineHeight),
-            clamp: getComputedStyle(document.querySelector('#detail-title')).webkitLineClamp,
+            titleClipped: document.querySelector('#detail-title').scrollHeight > document.querySelector('#detail-title').clientHeight + 1,
             metaHeight: meta.height, overflow: body.scrollWidth-body.clientWidth, pageOverflow: document.documentElement.scrollWidth-innerWidth,
             tooltip: document.querySelector('#shared-tooltip').matches(':popover-open'),
           };
@@ -234,7 +234,7 @@ test('Chrome v4: all Web + LLM editions, 360/420/520 dock widths + fullscreen, b
         assert.ok(metrics.centerError <= 2, `${label}: ${JSON.stringify(metrics)}`);
         assert.equal(metrics.tileSize, width === 'fullscreen' ? 48 : 40, label);
         assert.equal(metrics.tileHeight, metrics.tileSize, label);
-        assert.ok(metrics.lines <= 2.01, label); assert.equal(metrics.clamp, '2', label);
+        assert.equal(metrics.titleClipped, false, label); assert.ok(metrics.lines >= 1, label);
         assert.equal(metrics.overflow, 0, label); assert.equal(metrics.pageOverflow, 0, label);
         assert.equal(metrics.tooltip, false, label);
         assert.ok(metrics.metaHeight < 25, label);

@@ -1,7 +1,7 @@
 const WEB_2013_SOURCE = 'https://wiki.owasp.org/images/f/f8/OWASP_Top_10_-_2013.pdf';
 const WEB_2017_SOURCE = 'https://github.com/OWASP/Top10/blob/master/2017/OWASP%20Top%2010-2017%20(en).pdf';
 
-const web2021Source = (file) => `https://owasp.org/Top10/${file}/`;
+const web2021Source = (file) => `https://owasp.org/Top10/2021/${file}/`;
 const web2025Source = (file) => `https://owasp.org/Top10/2025/${file}/`;
 const llm2025Source = (file) => `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2025/${file}.md`;
 const llm2026Source = (file) => `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/${file}.md`;

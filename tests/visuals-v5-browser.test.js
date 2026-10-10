@@ -134,7 +134,7 @@ test('Chrome v5: consistent section headers, sober scroll tabs and two-line line
       assert.equal(await tabs.evaluate(el => getComputedStyle(el).position), 'sticky');
       assert.equal(await tabs.locator('a[aria-current]').evaluate(el => getComputedStyle(el).borderBottomWidth), '2px');
       assert.equal(await tabs.locator('a[aria-current]').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
-      assert.equal(await tabs.evaluate(el => el.classList.contains('has-right-overflow')), true);
+      assert.equal(await tabs.evaluate(el => el.scrollWidth > el.clientWidth), false);
       await tabs.locator('a[href="#detail-example"]').click();
       await page.waitForFunction(() => document.querySelector('#detail-page .detail-section-nav a[aria-current]').hash === '#detail-example');
       if (language === 'en') await shot(page, 'detail-a05-tabs-example-dark');
@@ -142,7 +142,7 @@ test('Chrome v5: consistent section headers, sober scroll tabs and two-line line
       await page.waitForFunction(() => document.querySelector('#detail-page .detail-section-nav a[aria-current]').hash === '#detail-overview');
       await tabs.locator('a[href="#detail-sources"]').click();
       await page.waitForFunction(() => document.querySelector('#detail-page .detail-section-nav a[aria-current]').hash === '#detail-sources');
-      assert.equal(await tabs.evaluate(el => el.classList.contains('has-left-overflow')), true);
+      assert.equal(await tabs.evaluate(el => el.scrollWidth > el.clientWidth), false);
       assert.equal(await tabs.evaluate(el => el.classList.contains('has-right-overflow')), false);
     }
     await ready(page, origin + pathFor({ family: 'web', year: 2025, id: 'A03' }, catalog, 'en'));

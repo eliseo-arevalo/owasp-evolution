@@ -56,7 +56,14 @@ export function matrixSVG(stage, language) {
     for (const icon of column.querySelectorAll('.matrix-icon')) {
       const box = icon.getBoundingClientRect();
       if (!box.width || !box.height) continue;
-      parts.push(`<svg x="${box.x - bounds.x}" y="${box.y - bounds.y}" width="${box.width}" height="${box.height}" viewBox="0 0 24 24" fill="none" stroke="${xml(getComputedStyle(icon).color)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${icon.innerHTML}</svg>`);
+      // Resolve CSS fills so downloaded SVG/PNG retains the vendored 256-unit geometry
+      // and both duotone layers without depending on the application's stylesheet.
+      const copy = icon.cloneNode(true);
+      const layers = icon.querySelectorAll('.icon-tile, .icon-secondary');
+      copy.querySelectorAll('.icon-tile, .icon-secondary').forEach((layer, index) => {
+        layer.setAttribute('fill', getComputedStyle(layers[index]).fill);
+      });
+      parts.push(`<svg x="${box.x - bounds.x}" y="${box.y - bounds.y}" width="${box.width}" height="${box.height}" viewBox="${xml(icon.getAttribute('viewBox'))}" fill="${xml(getComputedStyle(icon).color)}">${copy.innerHTML}</svg>`);
     }
     for (const element of column.querySelectorAll('.edition-year, .risk-rank, .risk-name')) {
       const style = getComputedStyle(element);

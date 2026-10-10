@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { iconPaths } from '../src/icons.js';
 import { visuals, getVisual, iconSVG, diagramSVG, attackSectionHTML } from '../src/visuals.js';
 import { catalog } from '../src/data.js';
 import { translate } from '../src/i18n.js';
@@ -10,7 +11,7 @@ import { exportMarkdown } from '../src/export.js';
 const pilot = catalog.families.web.editions.find(edition => edition.year === 2025).items;
 test('every Web 2025 category has distinct Phosphor duotone paths and attack topology', () => {
   assert.deepEqual(Object.keys(visuals.web[2025]), pilot.map(item => item.id));
-  assert.equal(new Set(pilot.map(item => getVisual('web', 2025, item.id).glyph)).size, 10);
+  assert.equal(new Set(pilot.map(item => iconPaths(getVisual('web', 2025, item.id).icon))).size, 10);
   assert.equal(new Set(pilot.map(item => getVisual('web', 2025, item.id).layout)).size, 10);
   assert.equal(new Set(pilot.map(item => diagramSVG('web', 2025, item.id).replace(/<title>[^]*?<\/desc>/, ''))).size, 10);
   for (const { id, name } of pilot) {
@@ -80,16 +81,7 @@ test('every pilot category prerenders accessible SVG and explanatory text before
     assert.ok(article.includes(t(getVisual('web', 2025, id).fix).replaceAll('"', '&quot;')));
     assert.ok(article.includes(pilot.find(item => item.id === id).source));
   }
-  for (const family of Object.values(catalog.families)) for (const edition of family.editions) {
-    if (family.id === 'web' && edition.year === 2025) continue;
-    for (const { id } of edition.items) {
-      assert.equal(getVisual(family.id, edition.year, id), undefined);
-      assert.equal(iconSVG(family.id, edition.year, id), '');
-      assert.equal(diagramSVG(family.id, edition.year, id), '');
-      assert.equal(attackSectionHTML(family.id, edition.year, id), '');
-      assert.doesNotMatch(files.get(pathFor({ family: family.id, year: edition.year, id }, catalog).slice(1) + 'index.html'), /attack-diagram|risk-icon/);
-    }
-  }
+
 });
 
 test('Markdown export remains textual without diagram or icon markup', () => {
