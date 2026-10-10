@@ -53,6 +53,11 @@ export function matrixSVG(stage, language) {
       if (card.classList.contains('is-selected')) parts.push(`<rect x="${box.x - bounds.x}" y="${box.y - bounds.y}" width="2" height="${box.height}" fill="${xml(style.color)}"/>`);
       if (parseFloat(style.borderBottomWidth)) parts.push(`<path d="M${box.x - bounds.x} ${box.bottom - bounds.y}h${box.width}" stroke="${xml(style.borderBottomColor)}"/>`);
     }
+    for (const icon of column.querySelectorAll('.matrix-icon')) {
+      const box = icon.getBoundingClientRect();
+      if (!box.width || !box.height) continue;
+      parts.push(`<svg x="${box.x - bounds.x}" y="${box.y - bounds.y}" width="${box.width}" height="${box.height}" viewBox="0 0 24 24" fill="none" stroke="${xml(getComputedStyle(icon).color)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${icon.innerHTML}</svg>`);
+    }
     for (const element of column.querySelectorAll('.edition-year, .risk-rank, .risk-name')) {
       const style = getComputedStyle(element);
       const textNode = element.firstChild;

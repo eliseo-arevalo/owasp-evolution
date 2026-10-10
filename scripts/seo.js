@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { iconSVG, attackSectionHTML } from '../src/visuals.js';
 import { catalog } from '../src/data.js';
 import { localizeCatalog, translate } from '../src/i18n.js';
 import { pathFor } from '../src/routes.js';
@@ -23,8 +24,9 @@ export function generateSeo(data = catalog) {
       const title = item ? `${item.id}: ${item.name} · ${edition.year} · ${language.toUpperCase()} · OWASP Evolution` : family ? `${family.label} · ${language.toUpperCase()} · OWASP Evolution` : `OWASP Evolution · ${language === 'es' ? 'Evolución de riesgos' : 'Risk evolution'}`;
       const description = item ? `${item.id} (${edition.year}): ${item.summary}` : family ? family.description : t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.');
       const alternates = ['es','en'].map(lang => `<link rel="alternate" hreflang="${lang}" href="${origin}${pathFor(route,data,lang)}">`).join('\n') + `\n<link rel="alternate" hreflang="x-default" href="${origin}${pathFor(route,data,'en')}">`;
-      let content = `<h1>${escape(item ? `${item.id}: ${item.name} · ${edition.year}` : title)}</h1><p>${escape(description)}</p>`;
+      let content = `<h1>${item ? iconSVG(family.id, edition.year, item.id, item.name) : ''}${escape(item ? `${item.id}: ${item.name} · ${edition.year}` : title)}</h1><p>${escape(description)}</p>`;
       if (item) {
+        content += attackSectionHTML(family.id, edition.year, item.id, t);
         const lineage = getLineage(localized, family.id, edition.year, item.id);
         content += `<h2>${t('Prevención prioritaria')}</h2><ul>${item.prevention.map(p=>`<li>${escape(p)}</li>`).join('')}</ul><h2>${t('Linaje en el tiempo')}</h2><ol>${lineage.nodes.map(n=>`<li><a href="${pathFor({family:family.id,year:n.year,id:n.id},data,language)}">${n.year} · ${n.id}: ${escape(n.name)}</a> ${escape(n.change)}</li>`).join('')}</ol><ul>${lineage.edges.map(e=>`<li>${escape(e.from)} → ${escape(e.to)}: ${escape(e.note)}</li>`).join('')}</ul><a href="${escape(item.source)}">${t('Abrir fuente oficial ↗')}</a>`;
       } else {

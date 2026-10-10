@@ -873,3 +873,33 @@ html:not(.js) #matrix-page, html:not(.js) .header-meta { display: none; }
 .booting[data-initial-dock='left'] .explorer-shell { grid-template-columns: clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)) minmax(0, 1fr); }
 .booting[data-initial-dock='left'] .timeline-panel { grid-column: 2; }
 .booting[data-initial-dock='right'] .explorer-shell { grid-template-columns: minmax(0, 1fr) clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)); }
+
+/* The pilot's glyphs use the existing rank column; names keep their width. */
+.risk-icon { display: block; flex: none; }
+.risk-rank.has-icon { position: relative; transform: translateY(6px); font-size: 11px; line-height: 11px; text-align: center; }
+.matrix-icon { position: absolute; top: -12px; left: 5px; width: 12px; height: 12px; color: var(--quiet); }
+.detail-heading { display: flex; align-items: flex-start; gap: 10px; }
+.detail-icon { flex: none; padding-top: 1px; color: var(--muted); }
+.detail-icon .risk-icon { width: 28px; height: 28px; }
+#prerender h1 .risk-icon { display: inline-block; vertical-align: middle; margin-right: 10px; width: 32px; height: 32px; }
+.attack-section { max-width: 420px; padding-block: 16px; }
+.attack-section h2 { margin-bottom: 8px; }
+.attack-diagram { display: block; width: 100%; height: auto; aspect-ratio: 2; overflow: visible; }
+.attack-node rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
+.attack-role { fill: var(--quiet); font-family: 'Geist Mono', monospace; font-size: 11px; }
+.attack-label { fill: var(--ink); font-family: Geist, system-ui, sans-serif; font-size: 11px; font-weight: 500; }
+.attack-path { fill: none; stroke: var(--continues); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.attack-description { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+/* Finishes in under half a second; geometry is reserved even during the reveal. */
+.detail-modal[open] .attack-node { animation: attack-node-in var(--motion-modal) var(--ease) both; animation-delay: calc(var(--step) * var(--motion-fast) / 2); }
+.detail-modal[open] .attack-path { stroke-dasharray: 1; animation: attack-path-in var(--motion) var(--ease) both; animation-delay: calc((var(--step) + 1) * var(--motion-fast) / 2); }
+@keyframes attack-node-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes attack-path-in { from { stroke-dashoffset: 1; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
+@media (max-width: 400px) {
+  .matrix-icon { display: none; }
+  .risk-rank.has-icon { transform: none; font-size: 11px; line-height: normal; text-align: left; }
+  .detail-icon .risk-icon { width: 24px; height: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .detail-modal[open] .attack-node, .detail-modal[open] .attack-path { animation: none; }
+}

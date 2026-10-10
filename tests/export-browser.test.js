@@ -53,6 +53,8 @@ test('Chrome downloads all formats and renders standalone images at desktop and 
           assert.ok(result.colors > 20 && result.connections > 20, JSON.stringify(result));
           if (format === 'png') assert.equal(result.width, (Math.ceil(before.width) + 32) * 2);
           if (format === 'svg') {
+            // Native glyphs export on desktop and stay hidden with the mobile matrix.
+            assert.equal((data.toString().match(/<svg x=/g) || []).length, width === 1440 ? 10 : 0);
             assert.ok(data.toString().includes('2025</text>'));
             assert.ok(data.toString().includes('Broken Access Control'));
             assert.ok(data.toString().includes('OWASP Evolution · OWASP Top 10'));

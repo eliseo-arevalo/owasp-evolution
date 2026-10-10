@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { iconSVG, attackSectionHTML } from '../src/visuals.js';
 import { catalog } from '../src/data.js';
 import { getEdition, getLineage, getRisk, relationshipLabel } from '../src/model.js';
 import { relationKind, rowCues } from '../src/editions.js';
@@ -22,7 +23,8 @@ const flatten = (entry) => [entry, ...entry.children.flatMap(flatten)];
 
 test('detail retains every official lineage title, including isolated categories, and marks hidden years and relation strokes', () => {
   const detailPage = node('article');
-  const context = { node, catalog, getEdition, relationshipLabel, relationKind, rowCues,
+  const context = { node, catalog, iconSVG, attackSectionHTML,
+    visualNode: (markup, className) => markup ? node('div', className, markup) : null, getEdition, relationshipLabel, relationKind, rowCues,
     t: (text) => text, dockControl: () => node('label', 'dock-control'), returnToMatrix() {}, elements: { detailPage },
     document: { createTextNode: (text) => node('text', '', text) },
     yearFilters: new Map(),

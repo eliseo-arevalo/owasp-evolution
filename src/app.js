@@ -1,3 +1,4 @@
+import { iconSVG, attackSectionHTML } from './visuals.js';
 import { pathFor, routeFrom, languageOf } from './routes.js';
 import { menuButton } from './menu.js';
 import { exportFilename, exportCSV, exportJSON, exportMarkdown, matrixSVG, pngBlob, download } from './export.js';
@@ -106,6 +107,13 @@ function node(tag, className, text) {
   const element = document.createElement(tag);
   if (className) element.className = className;
   if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function visualNode(markup, className) {
+  if (!markup) return null;
+  const element = node('div', className);
+  element.innerHTML = markup;
   return element;
 }
 
@@ -242,6 +250,12 @@ function renderTimeline(family, ease = false) {
       button.title = [risk.name, `${risk.id} · ${risk.year}`, risk.change].filter(Boolean).join('\n');
 
       const rank = node('span', 'risk-rank', String(risk.rank).padStart(2, '0'));
+      const icon = iconSVG(family.id, edition.year, risk.id, '', 'risk-icon matrix-icon');
+      if (icon) {
+        rank.classList.add('has-icon');
+        // Keep the same 22px rank column and all of the name's existing width.
+        rank.insertAdjacentHTML('beforeend', icon);
+      }
       const copy = node('span', 'risk-copy');
       copy.append(node('span', 'risk-name', risk.name));
       button.append(rank, copy);
@@ -566,6 +580,11 @@ function renderDetail(family, risk, lineage) {
 
   const heading = node('h1', '', risk.name);
   heading.id = 'detail-title';
+  const icon = visualNode(iconSVG(family.id, risk.year, risk.id, risk.name), 'detail-icon');
+  const title = node('div', 'detail-heading');
+  if (icon) title.append(icon);
+  title.append(heading);
+  const attack = visualNode(attackSectionHTML(family.id, risk.year, risk.id, t), 'detail-attack');
   const summary = node('p', 'detail-summary', risk.summary);
 
   const prevention = node('section', 'detail-section');
@@ -630,8 +649,9 @@ function renderDetail(family, risk, lineage) {
   linkSection.append(source);
 
   const header = node('header', 'detail-header');
-  header.append(top, heading, summary);
+  header.append(top, title, summary);
   const body = node('div', 'detail-body');
+  if (attack) body.append(attack);
   body.append(prevention, history, relations, linkSection);
   elements.detailPage.append(header, body);
 
