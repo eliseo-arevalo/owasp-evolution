@@ -1,9 +1,17 @@
+export function latestEdition(family) {
+  return [...family.editions].sort((a, b) => a.year - b.year).at(-1);
+}
+
+export function firstCategory(edition) {
+  return [...edition.items].sort((a, b) => a.rank - b.rank)[0];
+}
+
 export function defaultVisibleYears(family) {
-  return family.editions.filter((edition) => !edition.hiddenByDefault).map((edition) => edition.year);
+  return [...family.editions].sort((a, b) => a.year - b.year).slice(-2).map((edition) => edition.year);
 }
 
 export function visibleEditions(family, years) {
-  return family.editions.filter((edition) => years.has(edition.year));
+  return family.editions.filter((edition) => years.has(edition.year)).sort((a, b) => a.year - b.year);
 }
 
 // Collapse paths through hidden editions so that lineage remains visible across gaps.
@@ -78,7 +86,7 @@ export function primaryNeighbor(connections, key, direction) {
 
 // Per-row cues for categories that enter, leave, or connect only through a hidden edition.
 export function rowCues(family, years) {
-  const editionYears = family.editions.map((edition) => edition.year);
+  const editionYears = family.editions.map((edition) => edition.year).sort((a, b) => a - b);
   const connections = visibleConnections(family, years);
   const cues = new Map();
   for (const edition of visibleEditions(family, years)) {

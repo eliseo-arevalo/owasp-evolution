@@ -7,7 +7,7 @@ import { catalog } from '../src/data.js';
 import { formatRoute } from '../src/model.js';
 
 const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
-const navigation = app.slice(app.indexOf('function navigate('), app.indexOf('function renderFamilyNav('));
+const navigation = app.slice(app.indexOf('function saveDetailChoice('), app.indexOf('function renderFamilyNav('));
 function setup() {
   let renders = 0;
   let backs = 0;

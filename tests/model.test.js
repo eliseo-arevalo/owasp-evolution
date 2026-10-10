@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { latestEdition, firstCategory } from '../src/editions.js';
 import { catalog } from '../src/data.js';
 import {
   flattenCatalog,
@@ -61,8 +62,8 @@ test('hash routes round-trip and reject unavailable entries with safe defaults',
   assert.deepEqual(parseRoute(formatRoute(route), catalog), route);
   assert.deepEqual(parseRoute('#/unknown/1900/nope', catalog), {
     family: catalog.defaultFamily,
-    year: catalog.families[catalog.defaultFamily].defaultYear,
-    id: catalog.families[catalog.defaultFamily].editions.at(-1).items[0].id,
+    year: latestEdition(catalog.families[catalog.defaultFamily]).year,
+    id: firstCategory(latestEdition(catalog.families[catalog.defaultFamily])).id,
   });
 });
 

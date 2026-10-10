@@ -216,6 +216,7 @@ test('Chrome v4: all Web + LLM editions, 360/420/520 dock widths + fullscreen, b
       }, width);
       for (const family of Object.values(catalog.families)) for (const edition of family.editions) for (const item of edition.items) for (const language of ['es','en']) {
         await page.goto(url(family.id, edition.year, item.id, language));
+        await page.locator('#detail-modal[open]').waitFor();
         await page.evaluate(() => document.fonts.ready);
         if (width === 'fullscreen') await action(page, 'fullscreen').click();
         const metrics = await page.evaluate(() => {

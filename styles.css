@@ -234,6 +234,7 @@ h1, h2, h3, p { text-wrap: pretty; }
   color: var(--muted);
   font-family: 'Geist Mono', monospace;
   font-size: 11px;
+  line-height: 16px;
 }
 .legend > span { display: inline-flex; align-items: center; gap: 7px; }
 .legend-short { display: none; }
@@ -793,7 +794,7 @@ h1, h2, h3, p { text-wrap: pretty; }
 .dock-drop-right { inset: 12px 4px 12px auto; width: 20%; }
 .dock-drop-bottom { inset: auto 4px 12px; height: 22%; }
 .dock-drop.is-target { opacity: 1; background: color-mix(in srgb, var(--ink) 14%, transparent); }
-@media (max-width: 640px), (pointer: coarse) and (max-width: 900px) {
+@media (max-width: 640px) {
   .explorer-shell { min-height: 0; }
   .detail-header { cursor: auto; touch-action: auto; }
   .timeline-panel .timeline-stage { --risk-row-height: clamp(24px, calc((100cqh - 56px) / 10), 36px); }
@@ -843,11 +844,14 @@ h1, h2, h3, p { text-wrap: pretty; }
 html:not(.js) #matrix-page, html:not(.js) .header-meta { display: none; }
 .booting .explorer-shell { transition: none; }
 
-/* Reserve the desktop deep-link panel before module hydration paints the matrix. */
+/* Reserve the chosen panel slot before module hydration paints the matrix. */
 .booting[data-initial-detail='true'] .explorer-shell { grid-template-rows: minmax(0, 1fr); }
-.booting[data-initial-dock='left'] .explorer-shell { grid-template-columns: clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)) minmax(0, 1fr); }
+.booting[data-initial-dock='left'] .explorer-shell { grid-template-columns: clamp(240px, var(--initial-dock-size), max(240px, calc(100% * .48))) minmax(0, 1fr); }
 .booting[data-initial-dock='left'] .timeline-panel { grid-column: 2; }
-.booting[data-initial-dock='right'] .explorer-shell { grid-template-columns: minmax(0, 1fr) clamp(240px, var(--initial-dock-size), calc((100vw - 32px) * .48)); }
+.booting[data-initial-dock='right'] .explorer-shell { grid-template-columns: minmax(0, 1fr) clamp(240px, var(--initial-dock-size), max(240px, calc(100% * .48))); }
+.booting[data-initial-dock='bottom'] .explorer-shell { grid-template-rows: minmax(0, 1fr) clamp(max(100px, calc(100% * .25)), var(--initial-dock-size), calc(100% * .9)); }
+.booting[data-initial-peek='true'] .explorer-shell { grid-template-rows: minmax(0, 1fr) max(100px, calc(100% * .25)); }
+.booting .detail-modal { animation: none; }
 
 /* Phosphor duotone: one category accent, neutral tiles, ink outlines. */
 :root { --visual-mint: #70d6b0; --visual-blue: #80bfff; --visual-amber: #f0bd70; --visual-red: #ff8a80; }

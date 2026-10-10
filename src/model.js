@@ -1,3 +1,4 @@
+import { latestEdition, firstCategory } from './editions.js';
 function normalize(value = '') {
   return String(value)
     .normalize('NFD')
@@ -88,8 +89,8 @@ export function getLineage(input, familyId, year, id) {
 
 function defaultRoute(input) {
   const family = input.families[input.defaultFamily];
-  const edition = family.editions.find((candidate) => candidate.year === family.defaultYear) ?? family.editions.at(-1);
-  return { family: family.id, year: edition.year, id: edition.items[0].id };
+  const edition = latestEdition(family);
+  return { family: family.id, year: edition.year, id: firstCategory(edition).id };
 }
 
 export function parseRoute(hash, input) {

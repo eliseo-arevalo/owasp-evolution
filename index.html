@@ -12,17 +12,31 @@
   <script>
     (() => {
       document.documentElement.classList.add('js', 'booting');
-      if (typeof location !== 'undefined' && (/\/\d{4}\//.test(location.pathname) || /\/detalle$/.test(location.hash))) {
-        const root = document.documentElement;
-        let dock = { side: 'left', width: 380 };
-        try {
-          dock = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}').desktop || { ...dock, side: localStorage.getItem('owasp-dock') || 'left' };
-        } catch {}
-        if (!matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 900px)').matches && ['left', 'right'].includes(dock.side)) {
-          root.dataset.initialDetail = 'true';
-          root.dataset.initialDock = dock.side;
-          root.style.setProperty('--initial-dock-size', `${Number(dock.width) > 0 ? Number(dock.width) : 380}px`);
+      const root = document.documentElement;
+      const deepDetail = /\/\d{4}\/[^/]+/.test(location.pathname) || /\/detalle$/.test(location.hash);
+      let open = true;
+      const desktop = { side: 'left', width: 380, height: 320 };
+      const mobile = { side: 'bottom', height: 0 };
+      try {
+        open = localStorage.getItem('owasp-detail-open') !== 'false';
+        const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
+        for (const [dock, value] of [[desktop, saved.desktop], [mobile, saved.mobile]]) {
+          if (!value) continue;
+          if (['left', 'right', 'bottom'].includes(value.side)) dock.side = value.side;
+          for (const size of ['width', 'height']) if (Number.isFinite(value[size]) && value[size] > 0) dock[size] = value[size];
         }
+        if (!saved.desktop) desktop.side = localStorage.getItem('owasp-dock') || 'left';
+      } catch {}
+      // A legacy matrix hash explicitly requests a selection without detail.
+      if (deepDetail || (open && !location.hash.startsWith('#/'))) {
+        const narrow = matchMedia('(max-width: 640px)').matches;
+        const dock = narrow ? mobile : desktop;
+        const side = narrow ? 'bottom' : ['left', 'right', 'bottom'].includes(dock.side) ? dock.side : 'left';
+        const size = side === 'bottom' ? dock.height : dock.width;
+        root.dataset.initialDetail = 'true';
+        root.dataset.initialDock = side;
+        root.style.setProperty('--initial-dock-size', `${Number.isFinite(size) && size > 0 ? size : side === 'bottom' ? 0 : 380}px`);
+        if (side === 'bottom' && !(Number.isFinite(size) && size > 0)) root.dataset.initialPeek = 'true';
       }
       let theme = 'system';
       try { theme = localStorage.getItem('owasp-theme') || 'system'; } catch {}

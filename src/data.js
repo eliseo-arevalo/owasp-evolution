@@ -178,10 +178,9 @@ export const catalog = {
       id: 'web',
       label: 'OWASP Top 10 · Web',
       shortLabel: 'Aplicaciones web',
-      description: 'Cómo evolucionaron las categorías de riesgo de aplicaciones web desde 2013 hasta la edición vigente de 2025.',
-      defaultYear: 2025,
+      description: 'Cómo evolucionaron las categorías de riesgo de aplicaciones web.',
       editions: [
-        { year: 2013, hiddenByDefault: true, label: 'OWASP Top 10 2013', status: 'Histórica', items: web2013 },
+        { year: 2013, label: 'OWASP Top 10 2013', status: 'Histórica', items: web2013 },
         { year: 2017, label: 'OWASP Top 10 2017', status: 'Histórica', items: web2017 },
         { year: 2021, label: 'OWASP Top 10 2021', status: 'Anterior', items: web2021 },
         { year: 2025, label: 'OWASP Top 10 2025', status: 'Vigente', items: web2025 },
@@ -221,8 +220,7 @@ export const catalog = {
       id: 'llm',
       label: 'OWASP Top 10 · GenAI / LLM',
       shortLabel: 'GenAI y LLM',
-      description: 'Evolución de los riesgos principales para aplicaciones con modelos generativos entre 2025 y la edición vigente de 2026.',
-      defaultYear: 2026,
+      description: 'Evolución de los riesgos principales para aplicaciones con modelos generativos.',
       editions: [
         { year: 2025, label: 'OWASP Top 10 for LLM Applications 2025', status: 'Anterior', items: llm2025 },
         { year: 2026, label: 'OWASP GenAI LLM Top 10 2026', status: 'Vigente', items: llm2026 },

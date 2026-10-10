@@ -180,6 +180,7 @@ test('Chrome v5: 1/2/3/4 edition widths, docking, centering and connectors durin
     for (const width of [1440, 1024, 390]) for (const docked of [false, true]) {
       const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 }, colorScheme: width === 390 ? 'light' : 'dark' });
       page.on('pageerror', error => errors.push(error.message));
+      if (!docked) await page.addInitScript(() => localStorage.setItem('owasp-detail-open', 'false'));
       const route = docked ? pathFor({ family: 'web', year: 2025, id: 'A05' }, catalog, 'en') : '/';
       await ready(page, origin + route);
       const chrome = (await geometry(page)).chrome;

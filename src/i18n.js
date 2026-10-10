@@ -328,7 +328,7 @@ export function localizeCatalog(catalog, language) {
   return {
     ...catalog,
     families: Object.fromEntries(Object.entries(catalog.families).map(([id, family]) => [id, {
-      ...family, label: t(family.label), shortLabel: t(family.shortLabel), description: t(family.description),
+      ...family, label: t(family.label), shortLabel: t(family.shortLabel), description: `${t(family.description)} ${family.editions.map(edition => edition.year).sort((a, b) => a - b).join(' · ')}.`,
       editions: family.editions.map((edition) => ({ ...edition, status: t(edition.status), items: edition.items.map((risk) => ({
         ...risk, summary: t(risk.summary), prevention: risk.prevention.map(t), change: t(risk.change),
       })) })),

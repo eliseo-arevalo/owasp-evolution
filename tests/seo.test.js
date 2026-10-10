@@ -3,6 +3,34 @@ import assert from 'node:assert/strict';
 import { generateSeo } from '../scripts/seo.js';
 import {catalog} from '../src/data.js';
 import {pathFor,routeFrom,languageOf} from '../src/routes.js';
+import { defaultVisibleYears, latestEdition, firstCategory } from '../src/editions.js';
+
+test('new editions shift defaults, home selection, prerender and discovery without year constants', () => {
+ const data = structuredClone(catalog);
+ const family = data.families[data.defaultFamily];
+ const previous = latestEdition(family);
+ const added = { ...structuredClone(previous), year: previous.year + 4, label: `${family.label} ${previous.year + 4}` };
+ // Sorting and rank selection must work even when a new edition is prepended
+ // and its categories arrive in reverse order.
+ added.items.reverse();
+ family.editions.unshift(added);
+ assert.deepEqual(defaultVisibleYears(family), [previous.year, added.year]);
+ for (const path of ['/', '/web/', '/es/', '/es/web/']) {
+  assert.deepEqual(routeFrom(path, data), { family: family.id, year: added.year, id: firstCategory(added).id, detail: false });
+ }
+ const files = generateSeo(data);
+ const root = files.get('index.html');
+ assert.ok(root.includes(added.label.replaceAll('&', '&amp;')));
+ for (const lang of ['en', 'es']) {
+  const path = pathFor({ family: family.id, year: added.year, id: firstCategory(added).id }, data, lang);
+  assert.ok(files.has(path.slice(1) + 'index.html'));
+  assert.ok(files.get('sitemap.xml').includes(path));
+  assert.ok(files.get('llms-full.txt').includes(path));
+  const html = files.get(pathFor({ family: family.id }, data, lang).slice(1) + 'index.html');
+  assert.ok(html.match(/<meta name="description" content="([^"]*)"/)[1].includes(String(added.year)));
+ }
+ assert.ok(root.match(/rel="canonical" href="([^"]*)"/)[1].endsWith('/'));
+});
 test('every route has unique metadata, static content and paired alternates',()=>{
  const origin = new URL(process.env.SITE_URL || JSON.parse(awaitPackage()).homepage).origin;
  const files=generateSeo(); const titles=new Set(); const descriptions=new Set(); let count=0;
@@ -13,7 +41,7 @@ test('every route has unique metadata, static content and paired alternates',()=
  for(const l of ['es','en']) assert.ok(html.includes(`hreflang="${l}" href="${origin}${pathFor(route,catalog,l)}"`));
  assert.equal(routeFrom(path,catalog).id,item.id);count++;
  }
- assert.equal([...files.get('sitemap.xml').matchAll(/<loc>/g)].length,count+6);
+ assert.equal([...files.get('sitemap.xml').matchAll(/<loc>/g)].length,count + 2 * (1 + Object.keys(catalog.families).length));
  assert.ok(!files.get('sitemap.xml').includes('<loc>/'));
 });
 import {readFileSync} from 'node:fs';
@@ -22,7 +50,7 @@ test('sitemap only lists actual pages and reciprocal language pairs',()=>{
  const files=generateSeo();const xml=files.get('sitemap.xml');
  const locations=[...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>new URL(m[1]));
  assert.equal(new Set(locations.map(u=>u.href)).size,locations.length);
- assert.equal(locations.length,126);
+ assert.equal(locations.length, 2 * (1 + Object.values(catalog.families).reduce((count, family) => count + 1 + family.editions.reduce((sum, edition) => sum + edition.items.length, 0), 0)));
  for(const url of locations){assert.ok(url.pathname.endsWith('/'));assert.ok(files.has(url.pathname.slice(1)+'index.html'));}
  for(const [,html] of files)if(html.startsWith('<!doctype html>') && html.includes('rel="canonical"')){
   const canonical=html.match(/rel="canonical" href="([^"]+)"/)[1];

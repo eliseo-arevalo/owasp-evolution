@@ -105,7 +105,7 @@ test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.M
     assert.equal(stored.mobile.side,'bottom');
     assert.ok(stored.mobile.height > 500);
     await mobile.setViewportSize({width:800,height:844}); await mobile.waitForTimeout(350);
-    assert.equal(await mobile.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
+    assert.equal(await mobile.locator('.explorer-shell').getAttribute('data-dock'),'right');
     await mobile.setViewportSize({width:390,height:844}); await mobile.waitForTimeout(350);
     check(await measure(mobile));
     const scroll=mobile.locator('.timeline-scroll');

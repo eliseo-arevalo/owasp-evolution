@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { catalog } from '../src/data.js';
+import { defaultVisibleYears, latestEdition, firstCategory } from '../src/editions.js';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -31,7 +33,7 @@ test('Chrome downloads all formats and renders standalone images at desktop and 
         const pending = page.waitForEvent('download');
         await page.locator(`[data-export="${format}"]`).click();
         const download = await pending;
-        assert.equal(download.suggestedFilename(), `owasp-evolution-web-2017-2021-2025.${format}`);
+        assert.equal(download.suggestedFilename(), `owasp-evolution-web-${defaultVisibleYears(catalog.families.web).join('-')}.${format}`);
         const path = `/workspace/tmp/owasp-export-${width === 1440 ? 'sample' : 'mobile'}.${format}`;
         await download.saveAs(path);
         const data = await readFile(path);
@@ -54,11 +56,12 @@ test('Chrome downloads all formats and renders standalone images at desktop and 
           if (format === 'png') assert.equal(result.width, (Math.ceil(before.width) + 32) * 2);
           if (format === 'svg') {
             // Every visible edition exports its native duotone icons on desktop and mobile.
-            assert.equal((data.toString().match(/<svg x=/g) || []).length, 30);
-            assert.equal((data.toString().match(/viewBox="0 0 256 256"/g) || []).length, 30);
+            assert.equal((data.toString().match(/<svg x=/g) || []).length, defaultVisibleYears(catalog.families.web).length * 10);
+            assert.equal((data.toString().match(/viewBox="0 0 256 256"/g) || []).length, defaultVisibleYears(catalog.families.web).length * 10);
             assert.doesNotMatch(data.toString(), /var\(--visual/);
-            assert.ok(data.toString().includes('2025</text>'));
-            assert.ok(data.toString().includes('Broken Access Control'));
+            assert.ok(data.toString().includes(`${latestEdition(catalog.families.web).year}</text>`));
+            const labels = [...data.toString().matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map(match => match[1]).join(' ').replace(/\s+/g, ' ').trim();
+            assert.ok(labels.includes(firstCategory(latestEdition(catalog.families.web)).name));
             assert.ok(data.toString().includes('OWASP Evolution · OWASP Top 10'));
           assert.doesNotMatch(data.toString(), /unofficial project|proyecto no oficial/);
           }

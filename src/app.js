@@ -11,6 +11,8 @@ import { saveLanguagePreference } from './locale.js';
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
 import {
   defaultVisibleYears,
+  latestEdition,
+  firstCategory,
   visibleEditions,
   visibleConnections,
   relationKind,
@@ -52,9 +54,11 @@ const elements = {
 };
 
 let currentRoute = routeFrom(location.pathname, catalog, location.hash);
-if (/\/\d{4}\//.test(location.pathname) && !location.hash.startsWith('#/')) {
-  history.replaceState({ ...history.state, route: currentRoute }, '', location.href);
-}
+// The head script reserves the same layout before the module graph loads.
+// Keep automatic detail in history state so home retains its URL and canonical.
+const automaticDetail = !currentRoute.detail && document.documentElement.dataset.initialDetail === 'true';
+if (automaticDetail) currentRoute = { ...currentRoute, detail: true };
+history.replaceState({ ...history.state, route: currentRoute, automaticDetail }, '', location.href);
 let activeEdges = [];
 let litEdges = new Set();
 let drawFrame = 0;
@@ -81,7 +85,7 @@ let layoutEasing = false;
 let modalExit = 0;
 const shell = document.querySelector('.explorer-shell');
 const resizer = document.querySelector('#dock-resizer');
-const narrowScreen = matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 900px)');
+const narrowScreen = matchMedia('(max-width: 640px)');
 const dockPreferences = { desktop: { side: 'left', width: 380, height: 320 }, mobile: { side: 'bottom', height: 0 } };
 try {
   const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
@@ -132,20 +136,32 @@ function visualNode(markup, className) {
   return element;
 }
 
+function saveDetailChoice(open) {
+  try { localStorage.setItem('owasp-detail-open', String(open)); } catch {}
+}
+
 function navigate(route) {
   if (currentRoute.detail && route.detail === undefined) route = { ...route, detail: true };
+  if (route.detail) saveDetailChoice(true);
   history.pushState({ route }, '', pathFor(route, catalog, language));
   render();
 }
 
 function openDetail() {
   if (currentRoute.detail) return;
+  saveDetailChoice(true);
   matrixReturnHash = pathFor({ family: currentRoute.family }, catalog, language);
   history.pushState({ matrixReturnHash }, '', pathFor(currentRoute, catalog, language));
   render();
 }
 
 function returnToMatrix() {
+  saveDetailChoice(false);
+  if (history.state?.automaticDetail) {
+    history.replaceState({ route: { ...currentRoute, detail: false } }, '', location.href);
+    render();
+    return;
+  }
   if (matrixReturnHash && history.state?.matrixReturnHash === matrixReturnHash) {
     history.back();
   } else {
@@ -171,8 +187,10 @@ function renderFamilyNav() {
     if (family.id === currentRoute.family) button.setAttribute('aria-current', 'page');
     button.addEventListener('click', () => {
       const editions = visibleEditions(family, yearFilters.get(family.id));
-      const edition = editions.find((item) => item.year === family.defaultYear) ?? editions.at(-1);
-      navigate({ family: family.id, year: edition.year, id: edition.items[0].id, detail: false });
+      const edition = [...editions].sort((a, b) => a.year - b.year).at(-1) ?? latestEdition(family);
+      const route = { family: family.id, year: edition.year, id: firstCategory(edition).id, detail: currentRoute.detail };
+      history.pushState({ route, automaticDetail: true }, '', pathFor({ family: family.id }, catalog, language));
+      render();
       elements.search.value = '';
       hideSearchResults();
     });
@@ -1165,7 +1183,7 @@ function updateDock() {
   shell.dataset.dock = position;
   const bottom = position === 'bottom';
   const { min, max, available } = dockLimits();
-  const size = Math.max(min, Math.min(max, dragSize ?? (preference()[bottom ? 'height' : 'width'] || available * .5)));
+  const size = Math.max(min, Math.min(max, dragSize ?? (preference()[bottom ? 'height' : 'width'] || (bottom && narrowScreen.matches ? min : available * .5))));
   shell.style.setProperty('--dock-size', `${size}px`);
   resizer.setAttribute('aria-orientation', bottom ? 'horizontal' : 'vertical');
   resizer.setAttribute('aria-valuemin', String(Math.round(min)));
@@ -1405,6 +1423,7 @@ function render() {
       if (wasDetail) updateDock();
     }
     if (!wasDetail) {
+      const activeBeforeOpen = document.activeElement;
       keepModal();
       if (!elements.detailModal.open) elements.detailModal.show();
       elements.detailModal.inert = false;
@@ -1412,7 +1431,14 @@ function render() {
       shell.classList.add('has-detail');
       followDockLayout();
       elements.detailModal.scrollTop = 0;
-      scheduleFocus(() => elements.detailPage.querySelector('#detail-title'));
+      if (!history.state?.automaticDetail) scheduleFocus(() => elements.detailPage.querySelector('#detail-title'));
+      else if (activeBeforeOpen && activeBeforeOpen !== document.body) activeBeforeOpen.focus({ preventScroll: true });
+      else {
+        // Reset native dialog autofocus and the Tab starting point to the page.
+        document.body.tabIndex = -1;
+        document.body.focus({ preventScroll: true });
+        document.body.removeAttribute('tabindex');
+      }
     }
   } else if (wasDetail) {
     if (fullscreen) {
@@ -1549,7 +1575,10 @@ elements.timelineGrid.addEventListener('focusout', (event) => {
   updateEmphasis();
 });
 window.addEventListener('hashchange', render);
-window.addEventListener('popstate', render);
+window.addEventListener('popstate', () => {
+  render();
+  saveDetailChoice(Boolean(currentRoute.detail));
+});
 window.addEventListener('resize', updateDock);
 // ResizeObserver runs after layout and before paint, including every grid transition frame.
 new ResizeObserver(drawConnections).observe(document.querySelector('.timeline-scroll'));
@@ -1566,7 +1595,7 @@ function switchLanguage(nextLanguage) {
   language = nextLanguage;
   saveLanguagePreference(window, language);
   const languageRoute = /^(?:\/(?:en|es))?\/$/.test(location.pathname) ? null : /\/\d{4}\//.test(location.pathname) ? currentRoute : { family: currentRoute.family };
-  history.pushState({ route: currentRoute }, '', pathFor(languageRoute, sourceCatalog, language));
+  history.pushState({ route: currentRoute, automaticDetail: history.state?.automaticDetail }, '', pathFor(languageRoute, sourceCatalog, language));
   catalog = localizeCatalog(sourceCatalog, language);
   render();
   renderSearchResults(elements.search.value);
@@ -1630,4 +1659,16 @@ exportMenu.addEventListener('click', async (event) => {
   }
 });
 
-elements.brand.addEventListener('click', event => { event.preventDefault(); history.pushState(null, '', pathFor(null, sourceCatalog, language)); render(); });
+document.querySelector('.skip-link').addEventListener('click', event => {
+  event.preventDefault();
+  document.querySelector('#timeline').focus({ preventScroll: true });
+});
+
+elements.brand.addEventListener('click', event => {
+  event.preventDefault();
+  let open = Boolean(currentRoute.detail);
+  try { open = localStorage.getItem('owasp-detail-open') !== 'false'; } catch {}
+  const route = { ...routeFrom(pathFor(null, sourceCatalog, language), catalog), detail: open };
+  history.pushState({ route, automaticDetail: true }, '', pathFor(null, sourceCatalog, language));
+  render();
+});

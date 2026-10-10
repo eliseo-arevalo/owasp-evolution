@@ -9,8 +9,8 @@ test('theme is resolved before CSS, defaults to system and tolerates unavailable
   assert.ok(html.indexOf('<script>') < html.indexOf('rel="stylesheet"'));
   for (const saved of [null, 'system', 'dark', 'light', 'invalid', 'blocked']) {
     for (const dark of [true, false]) {
-      const document = { documentElement: { dataset: {}, classList: { add() {} } }, querySelector: () => ({}) };
-      vm.runInNewContext(source, { document, localStorage: { getItem() { if (saved === 'blocked') throw Error(); return saved; } }, matchMedia: () => ({ matches: dark }) });
+      const document = { documentElement: { dataset: {}, classList: { add() {} }, style: { setProperty() {} } }, querySelector: () => ({}) };
+      vm.runInNewContext(source, { document, location: { pathname: '/', hash: '' }, localStorage: { getItem() { if (saved === 'blocked') throw Error(); return saved; } }, matchMedia: () => ({ matches: dark }) });
       const preference = ['dark', 'light'].includes(saved) ? saved : 'system';
       assert.equal(document.documentElement.dataset.themePreference, preference);
       assert.equal(document.documentElement.dataset.theme, preference === 'system' ? dark ? 'dark' : 'light' : preference);
