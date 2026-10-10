@@ -28,6 +28,8 @@ for (const name of modules) {
   // Conservative whitespace compaction preserves literals, regular expressions and ASI.
   await writeFile(target, compactJavaScript(text));
 }
+// Discover the module graph early to avoid serial import downloads on mobile.
+const preloads = modules.map(name => `<link rel="modulepreload" href="/assets/app-${version}/${name}">`).join('');
 const css = (await readFile(new URL('styles.css', output), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').replace(/\s*([{};])\s*/g, '$1').replaceAll('./assets/', '/assets/');
 const cssName = `styles-${createHash('sha256').update(css).digest('hex').slice(0,12)}.css`;
 await writeFile(new URL(cssName, output), css);
@@ -35,7 +37,7 @@ async function rewrite(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const target = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
     if (entry.isDirectory()) await rewrite(target);
-    else if (entry.name.endsWith('.html')) await writeFile(target, (await readFile(target, 'utf8')).replaceAll('/styles.css', `/${cssName}`).replaceAll('/src/app.js', `/assets/app-${version}/app.js`));
+    else if (entry.name.endsWith('.html')) await writeFile(target, (await readFile(target, 'utf8')).replaceAll('/styles.css', `/${cssName}`).replaceAll('/src/app.js', `/assets/app-${version}/app.js`).replace('</head>', `${preloads}</head>`));
   }
 }
 await rewrite(output);
