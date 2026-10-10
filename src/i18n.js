@@ -1,6 +1,7 @@
 import { english } from './translations-en.js';
 
 const ui = {
+  "Invítame un café": "Buy me a coffee",
   "API sin": "API without",
   "autorización": "authorization",
   "El modelo incorpora datos privados en argumentos de herramientas; una traza compartida los registra sin redactarlos y expone la información.": "The model includes private data in tool arguments; a shared trace records it without redaction and exposes the information.",
@@ -347,8 +348,8 @@ export function staticTranslator(document) {
     const original = node.textContent.replace(node.textContent.trim(), reverse.get(node.textContent.trim()) ?? node.textContent.trim());
     if (original.trim()) entries.push((language) => { node.textContent = original.replace(original.trim(), translate(original.trim(), language)); });
   }
-  for (const element of document.querySelectorAll('[aria-label], [placeholder], meta[name="description"]')) {
-    for (const attribute of ['aria-label', 'placeholder', 'content']) {
+  for (const element of document.querySelectorAll('[aria-label], [placeholder], [data-tooltip], meta[name="description"]')) {
+    for (const attribute of ['aria-label', 'placeholder', 'content', 'data-tooltip']) {
       if (!element.hasAttribute(attribute)) continue;
       const value = element.getAttribute(attribute);
       const original = reverse.get(value) ?? value;

@@ -1,6 +1,7 @@
 import { sharedTooltip } from './tooltip.js';
 import { lineageEditions } from './lineage.js';
 import { uiIcon } from './icons.js';
+import { supportLinkHTML } from './support.js';
 import { shortcutRows, shortcutCommand } from './shortcuts.js';
 import { iconSVG, attackSectionHTML } from './visuals.js';
 import { pathFor, routeFrom, languageOf } from './routes.js';
@@ -29,6 +30,7 @@ import {
   relationshipLabel,
 } from './model.js';
 
+document.querySelector('[data-support-icon]').innerHTML = uiIcon('coffee');
 const applyStaticLanguage = staticTranslator(document);
 let language = languageOf(location.pathname);
 let catalog = localizeCatalog(sourceCatalog, language);
@@ -966,6 +968,9 @@ function renderDetail(family, risk, lineage) {
     const entry = node('li'); entry.append(link); sources.append(entry);
   }
   linkSection.append(sources);
+  const support = node('p', 'detail-support');
+  support.innerHTML = supportLinkHTML(language);
+  linkSection.append(support);
 
   const header = node('header', 'detail-header');
   const status = node('div', 'detail-feedback');

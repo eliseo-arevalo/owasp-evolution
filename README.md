@@ -39,6 +39,10 @@ Para añadir una edición, incorporar sus diez categorías y relaciones con la e
 
 Los datos enlazan a documentación y repositorios oficiales de OWASP. Las explicaciones y prevención son resúmenes educativos, no citas literales ni un inventario exhaustivo de vulnerabilidades. Este proyecto no está afiliado oficialmente con OWASP Foundation.
 
+## Support
+
+[Buy me a coffee / Invítame un café](https://ko-fi.com/oclazi) — Apoya el proyecto / Support the project.
+
 ## Licencia
 
 Código bajo MIT, véase LICENSE. Las fuentes y denominaciones OWASP pertenecen a sus titulares.
