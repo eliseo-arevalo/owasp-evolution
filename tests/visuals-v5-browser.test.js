@@ -107,6 +107,9 @@ test('Chrome v5: sliding language radiogroup, click anywhere, keyboard and prese
     await selected().click();
     assert.equal(await group.evaluate(el => getComputedStyle(el, '::before').transitionDuration), '0s');
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#detail-page [data-action=close]').click();
+    await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
+    await selected().focus();
     await page.emulateMedia({ colorScheme: 'light' });
     assert.equal(await group.evaluate(el => el.getBoundingClientRect().right <= innerWidth), true);
     await page.keyboard.press('Space');
@@ -185,7 +188,12 @@ test('Chrome v5: 1/2/3/4 edition widths, docking, centering and connectors durin
       await ready(page, origin + route);
       const chrome = (await geometry(page)).chrome;
       for (const count of [4, 3, 2, 1]) {
+        if (width <= 640 && docked) {
+          await page.locator('#detail-page [data-action=close]').click();
+          await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
+        }
         await editionCount(page, count);
+        if (width <= 640 && docked) await page.locator('.risk-detail').click();
         const m = await geometry(page);
         assert.equal(m.overflow, 0);
         assert.ok(m.balance < 2, JSON.stringify({ width, docked, count, ...m }));
@@ -206,6 +214,10 @@ test('Chrome v5: 1/2/3/4 edition widths, docking, centering and connectors durin
           await page.waitForTimeout(300);
           await shot(page, '390-light');
         }
+      }
+      if (width <= 640 && docked) {
+        await page.locator('#detail-page [data-action=close]').click();
+        await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
       }
       // Record the actual painted width and endpoints on every frame of 1 → 2.
       const frames = await page.evaluate(async () => {

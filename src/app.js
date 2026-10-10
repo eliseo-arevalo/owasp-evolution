@@ -72,6 +72,9 @@ let wasDetail = false;
 let detailSignature = '';
 let fullscreen = false;
 let fullscreenReturn = null;
+let mobileDialog = false;
+let mobileReturnKey = null;
+let lockedScrollY = 0;
 let detailMenu = null;
 let sectionObserver = null;
 let stopSectionTracking = null;
@@ -85,11 +88,11 @@ let layoutEasing = false;
 let modalExit = 0;
 const shell = document.querySelector('.explorer-shell');
 const resizer = document.querySelector('#dock-resizer');
-const narrowScreen = matchMedia('(max-width: 640px)');
-const dockPreferences = { desktop: { side: 'left', width: 380, height: 320 }, mobile: { side: 'bottom', height: 0 } };
+const narrowScreen = matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 960px) and (max-height: 500px)');
+const dockPreferences = { desktop: { side: 'left', width: 380, height: 320 } };
 try {
   const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
-  for (const key of ['desktop', 'mobile']) {
+  for (const key of ['desktop']) {
     const value = saved[key];
     if (!value) continue;
     if (['left', 'right', 'bottom'].includes(value.side)) dockPreferences[key].side = value.side;
@@ -102,7 +105,7 @@ try {
 } catch {}
 let dockPosition = dockPreferences.desktop.side;
 let dragSize = null;
-const preference = () => dockPreferences[narrowScreen.matches ? 'mobile' : 'desktop'];
+const preference = () => dockPreferences.desktop;
 function saveDock() {
   try {
     localStorage.setItem('owasp-dock-layout', JSON.stringify(dockPreferences));
@@ -120,7 +123,7 @@ elements.connectorLayer.prepend(connectorDefs);
 const connectorPaths = () => elements.connectorLayer.querySelectorAll(':scope > path:not(.connector-hit)');
 const reducedMotion = () => prefersReducedMotion(window);
 const emphasisKey = () => currentRoute.detail ? selectedKey : hoverKey ?? focusKey ?? selectedKey;
-const resolveDetailReturn = () => elements.timelineStage.querySelector('.is-selected .risk-focus');
+const resolveDetailReturn = () => (mobileReturnKey && cardByKey(mobileReturnKey)?.querySelector('.risk-focus')) || elements.timelineStage.querySelector('.is-selected .risk-focus');
 
 function node(tag, className, text) {
   const element = document.createElement(tag);
@@ -143,12 +146,19 @@ function saveDetailChoice(open) {
 function navigate(route) {
   if (currentRoute.detail && route.detail === undefined) route = { ...route, detail: true };
   if (route.detail) saveDetailChoice(true);
-  history.pushState({ route }, '', pathFor(route, catalog, language));
+  if (narrowScreen.matches && route.detail) {
+    if (!currentRoute.detail) mobileReturnKey = `${route.year}:${route.id}`;
+    const state = { ...history.state, route, mobileDetail: !currentRoute.detail || Boolean(history.state?.mobileDetail), automaticDetail: false };
+    // Keep item navigation in the same mobile view: Back returns to the matrix.
+    if (currentRoute.detail) history.replaceState(state, '', pathFor(route, catalog, language));
+    else history.pushState(state, '', pathFor(route, catalog, language));
+  } else history.pushState({ route }, '', pathFor(route, catalog, language));
   render();
 }
 
 function openDetail() {
   if (currentRoute.detail) return;
+  if (narrowScreen.matches) { navigate({ ...currentRoute, detail: true }); return; }
   saveDetailChoice(true);
   matrixReturnHash = pathFor({ family: currentRoute.family }, catalog, language);
   history.pushState({ matrixReturnHash }, '', pathFor(currentRoute, catalog, language));
@@ -157,6 +167,7 @@ function openDetail() {
 
 function returnToMatrix() {
   saveDetailChoice(false);
+  if (history.state?.mobileDetail) { history.back(); return; }
   if (history.state?.automaticDetail) {
     history.replaceState({ route: { ...currentRoute, detail: false } }, '', location.href);
     render();
@@ -300,9 +311,9 @@ function renderTimeline(family, ease = false) {
       if (icon) button.insertAdjacentHTML('beforeend', icon);
       button.append(copy);
       button.addEventListener('click', (event) => {
-        // A double click commits once; keyboard activation has detail === 0.
-        if (event.detail > 1) return;
-        navigate({ family: family.id, year: edition.year, id: risk.id });
+        // Desktop double clicks commit once; every mobile tap opens its item.
+        if (event.detail > 1 && !narrowScreen.matches) return;
+        navigate({ family: family.id, year: edition.year, id: risk.id, ...(narrowScreen.matches ? { detail: true } : {}) });
       });
       button.addEventListener('dblclick', openDetail);
       card.append(button);
@@ -731,8 +742,9 @@ function moveSelection(key) {
   const target = card && rowTarget(card, key);
   if (!target?.classList.contains('risk-card')) return;
   const year = yearOf(target.dataset.key), id = idOf(target.dataset.key);
+  const focusInMatrix = elements.timelineGrid.contains(document.activeElement);
   navigate({ family: currentRoute.family, year, id });
-  if (!currentRoute.detail) target.querySelector('.risk-focus').focus({ preventScroll: true });
+  if (!currentRoute.detail || focusInMatrix) target.querySelector('.risk-focus').focus({ preventScroll: true });
 }
 
 function setDock(position) {
@@ -744,6 +756,7 @@ function setDock(position) {
 }
 
 function toggleFullscreen() {
+  if (narrowScreen.matches) return;
   if (!currentRoute.detail) return;
   const panel = elements.detailModal;
   if (!fullscreen) {
@@ -1178,12 +1191,41 @@ function dockLimits() {
   return { min: bottom ? Math.max(100, available * .25) : 240,
     max: bottom ? available * .9 : Math.max(240, available * .48), available };
 }
+// Native modality isolates the matrix; fixed body locking also covers iOS scrolling.
+function syncMobileDialog() {
+  const mobile = narrowScreen.matches && Boolean(currentRoute.detail);
+  if (mobile === mobileDialog) return;
+  const panel = elements.detailModal;
+  const active = document.activeElement;
+  panel.close();
+  mobileDialog = mobile;
+  if (mobile) lockedScrollY = window.scrollY;
+  panel.classList.toggle('is-mobile-fullscreen', mobile);
+  document.documentElement.classList.toggle('mobile-detail-open', mobile);
+  document.body.classList.toggle('mobile-detail-open', mobile);
+  if (mobile) {
+    document.body.style.setProperty('--locked-scroll-y', `${-lockedScrollY}px`);
+    panel.setAttribute('aria-modal', 'true');
+    panel.showModal();
+  } else {
+    document.body.style.removeProperty('--locked-scroll-y');
+    window.scrollTo(0, lockedScrollY);
+    panel.removeAttribute('aria-modal');
+    if (currentRoute.detail) {
+      if (fullscreen) panel.showModal();
+      else panel.show();
+    }
+  }
+  if (currentRoute.detail) scheduleFocus(() => panel.contains(active) ? active : elements.detailPage.querySelector('#detail-title'));
+}
+
 function updateDock() {
-  const position = narrowScreen.matches ? 'bottom' : dockPosition;
+  syncMobileDialog();
+  const position = narrowScreen.matches ? 'fullscreen' : dockPosition;
   shell.dataset.dock = position;
   const bottom = position === 'bottom';
   const { min, max, available } = dockLimits();
-  const size = Math.max(min, Math.min(max, dragSize ?? (preference()[bottom ? 'height' : 'width'] || (bottom && narrowScreen.matches ? min : available * .5))));
+  const size = Math.max(min, Math.min(max, dragSize ?? (preference()[bottom ? 'height' : 'width'] || available * .5)));
   shell.style.setProperty('--dock-size', `${size}px`);
   resizer.setAttribute('aria-orientation', bottom ? 'horizontal' : 'vertical');
   resizer.setAttribute('aria-valuemin', String(Math.round(min)));
@@ -1212,14 +1254,14 @@ function resizeDock(delta) {
   commitDock(Number(resizer.getAttribute('aria-valuenow')) + delta);
 }
 resizer.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0) return;
+  if (event.button !== 0 || narrowScreen.matches) return;
   event.preventDefault();
   resizer.setPointerCapture(event.pointerId);
   shell.classList.add('is-resizing');
   const side = shell.dataset.dock, bottom = side === 'bottom';
   const axis = e => bottom ? e.clientY : e.clientX;
   const start = axis(event), initial = Number(resizer.getAttribute('aria-valuenow'));
-  const { min, max, available } = dockLimits();
+  const { min, max } = dockLimits();
   let raw = initial, velocity = 0, previous = start, time = event.timeStamp, frame = 0, paintedSize = initial;
   const paint = () => {
     frame = 0;
@@ -1256,8 +1298,7 @@ resizer.addEventListener('pointerdown', (event) => {
     if (!cancelled && bottom && (raw < min * .65 || projected < min * .45)) {
       dragSize = null; updateDock(); returnToMatrix();
     } else {
-      let target = cancelled ? initial : projected;
-      if (bottom && narrowScreen.matches && !cancelled) target = [.25, .5, .9].map(n => available * n).reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
+      const target = cancelled ? initial : projected;
       commitDock(target);
     }
     scheduleConnections();
@@ -1266,6 +1307,7 @@ resizer.addEventListener('pointerdown', (event) => {
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) resizer.addEventListener(type, finish);
 });
 resizer.addEventListener('keydown', (event) => {
+  if (narrowScreen.matches) return;
   const sign = shell.dataset.dock === 'left' ? 1 : -1;
   const bottom = shell.dataset.dock === 'bottom';
   const direction = bottom ? { ArrowUp: 1, ArrowDown: -1 } : { ArrowLeft: -sign, ArrowRight: sign };
@@ -1446,7 +1488,12 @@ function render() {
       elements.detailModal.classList.remove('is-fullscreen');
     }
     dismissModal(() => {
-      scheduleFocus(resolveDetailReturn);
+      syncMobileDialog();
+      scheduleFocus(() => {
+        const target = resolveDetailReturn();
+        mobileReturnKey = null;
+        return target;
+      });
       scheduleConnections();
     });
   }
@@ -1457,7 +1504,8 @@ function render() {
 
 elements.detailModal.addEventListener('cancel', (event) => {
   event.preventDefault();
-  if (fullscreen) toggleFullscreen();
+  if (mobileDialog) returnToMatrix();
+  else if (fullscreen) toggleFullscreen();
   else returnToMatrix();
 });
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
@@ -1517,15 +1565,16 @@ elements.detailModal.addEventListener('click', event => {
 });
 document.addEventListener('keydown', (event) => {
   if (shortcutsDialog.open) { trapFocus(event, shortcutsDialog); return; }
-  if (fullscreen) trapFocus(event, elements.detailModal);
+  if (fullscreen || mobileDialog) trapFocus(event, elements.detailModal);
   if (event.defaultPrevented || event.isComposing || event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) return;
   const command = shortcutCommand(event);
   if (!command) return;
-  if (command === 'search') { event.preventDefault(); if (fullscreen) toggleFullscreen(); elements.search.focus(); scheduleFocus(() => elements.search); return; }
+  if (command === 'search') { event.preventDefault(); if (mobileDialog) return; if (fullscreen) toggleFullscreen(); elements.search.focus(); scheduleFocus(() => elements.search); return; }
   if (command === 'help') { event.preventDefault(); showShortcuts(); return; }
   if (command === 'escape') {
     event.preventDefault();
-    if (fullscreen) toggleFullscreen();
+    if (mobileDialog) returnToMatrix();
+    else if (fullscreen) toggleFullscreen();
     else if (currentRoute.detail) returnToMatrix();
     else { elements.search.value = ''; hideSearchResults(); elements.search.blur(); }
     return;
@@ -1668,7 +1717,7 @@ elements.brand.addEventListener('click', event => {
   event.preventDefault();
   let open = Boolean(currentRoute.detail);
   try { open = localStorage.getItem('owasp-detail-open') !== 'false'; } catch {}
-  const route = { ...routeFrom(pathFor(null, sourceCatalog, language), catalog), detail: open };
+  const route = { ...routeFrom(pathFor(null, sourceCatalog, language), catalog), detail: open && !narrowScreen.matches };
   history.pushState({ route, automaticDetail: true }, '', pathFor(null, sourceCatalog, language));
   render();
 });

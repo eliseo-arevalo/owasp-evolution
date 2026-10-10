@@ -15,10 +15,8 @@ test('Chrome: first visit reserves the panel, remembers close/open, and prioriti
   try {
     for (const [familyId, width, height, theme, motion] of [
       ['web', 1440, 1000, 'dark', 'no-preference'],
-      ['web', 390, 844, 'light', 'no-preference'],
       ['llm', 1440, 1000, 'dark', 'no-preference'],
       ['web', 768, 1024, 'light', 'reduce'],
-      ['llm', 640, 900, 'light', 'reduce'],
     ]) {
       const family = catalog.families[familyId];
       const edition = latestEdition(family), category = firstCategory(edition);
@@ -89,21 +87,6 @@ test('Chrome: first visit reserves the panel, remembers close/open, and prioriti
       assert.equal(geometry.overflow, 0);
       assert.ok(geometry.connectorError < 1);
       assert.ok(geometry.titleVisible);
-      if (width <= 640) {
-        assert.ok(Math.abs(geometry.panelRatio - .25) < .01, JSON.stringify(geometry));
-        const handle = await page.locator('#dock-resizer').boundingBox();
-        await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
-        await page.mouse.down();
-        await page.mouse.move(handle.x + handle.width / 2, handle.y - 200, { steps: 12 });
-        await page.mouse.up();
-        await page.waitForTimeout(350);
-        assert.ok(Number(await page.locator('#dock-resizer').getAttribute('aria-valuenow')) > height * .3);
-        // Restore the initial peek for the requested screenshot.
-        await page.evaluate(() => localStorage.removeItem('owasp-dock-layout'));
-        await page.reload();
-        await page.locator('#detail-modal[open]').waitFor();
-        await page.waitForTimeout(1100);
-      }
       if (width === 1440 || width === 390) await page.screenshot({ path: `/workspace/tmp/owasp-first-${familyId === 'llm' ? 'llm-' : ''}${width}-${theme}.png` });
       if (motion === 'reduce') assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
       await page.locator('[data-action="close"]').click();
@@ -183,7 +166,7 @@ test('Chrome: saved closed and resized panels reserve the correct space before h
       await page.goto('http://localhost:4210/');
       await page.locator('.risk-card').first().waitFor();
       await page.waitForTimeout(350);
-      assert.equal(await page.locator('#detail-modal').evaluate(dialog => dialog.open), open);
+      assert.equal(await page.locator('#detail-modal').evaluate(dialog => dialog.open), open && width > 640);
       const metrics = await page.evaluate(() => {
         const matrix = document.querySelector('.timeline-panel').getBoundingClientRect();
         return { cls: window.cls, frames: window.firstBoxes.length, delta: Math.max(0, ...window.firstBoxes.flatMap(box => ['x', 'y', 'width', 'height'].map(key => Math.abs(box[key] - matrix[key])))) };

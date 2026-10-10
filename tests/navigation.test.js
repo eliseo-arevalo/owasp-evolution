@@ -14,7 +14,7 @@ function setup() {
   const context = vm.createContext({
     location: { hash: '#/llm/2026/LLM03' },
     currentRoute: { family: 'llm', year: 2026, id: 'LLM03' },
-    matrixReturnHash: null, pathFor, catalog, language: 'es',
+    narrowScreen: { matches: false }, mobileReturnKey: null, matrixReturnHash: null, pathFor, catalog, language: 'es',
     window: { scrollY: 230 }, elements: { openDetailButton: {} }, formatRoute,
     render: () => renders++,
     history: {
@@ -68,9 +68,9 @@ test('docked detail closes with Back and Escape, and restores row focus', () => 
   assert.match(app, /if \(fullscreen\) toggleFullscreen\(\);\s*else returnToMatrix\(\)/);
   assert.match(app, /command === 'escape'[\s\S]*?returnToMatrix\(\)/);
   assert.match(app, /const resolveDetailReturn = .*is-selected .risk-focus/);
-  assert.match(app, /dismissModal\(\(\) => \{\s*scheduleFocus\(resolveDetailReturn\)/);
+  assert.match(app, /dismissModal\(\(\) => \{[\s\S]*?resolveDetailReturn\(\)/);
   assert.match(app, /modal\.close\(\);\s*done\(\);/);
-  assert.doesNotMatch(app, /matrixPage.hidden = detail|window.scrollTo/);
+  assert.doesNotMatch(app, /matrixPage.hidden = detail/);
 });
 
 
@@ -101,7 +101,7 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     scheduleFocus: (resolve) => calls.push(resolve() === row ? 'row focus' : 'modal focus'),
     resolveDetailReturn: () => row, scheduleConnections() {},
     shell: { classList: { add() {} } }, updateDock() {}, followDockLayout() {},
-    keepModal() {}, dismissModal: (done) => { calls.push('close'); done(); },
+    mobileReturnKey: null, syncMobileDialog() {}, keepModal() {}, dismissModal: (done) => { calls.push('close'); done(); },
   });
   const renderSource = app.slice(app.indexOf('function render()'), app.indexOf("elements.detailModal.addEventListener('cancel'"));
   Object.assign(context, { updateMetadata() {}, languageOf: () => context.language, localizeCatalog: () => context.catalog, sourceCatalog: {}, routeFrom: () => context.resolveRouteState().route, history: { state: null, replaceState() {} }, pathFor: () => '/' });
@@ -270,7 +270,7 @@ test('double click selects once and opens detail; keyboard click still selects',
   const calls = [];
   const source = app.slice(app.indexOf("button.addEventListener('click', (event)"), app.indexOf('      card.append(button);'));
   vm.runInNewContext(source, {
-    button: { addEventListener: (type, handler) => handlers.set(type, handler) },
+    narrowScreen: { matches: false }, button: { addEventListener: (type, handler) => handlers.set(type, handler) },
     family: { id: 'web' }, edition: { year: 2025 }, risk: { id: 'A02' },
     navigate: (route) => calls.push(`select ${route.year}:${route.id}`),
     openDetail: () => calls.push('detail'),

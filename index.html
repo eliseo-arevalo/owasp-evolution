@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.">
   <meta property="og:title" content="OWASP Evolution">
   <meta property="og:description" content="Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.">
@@ -16,11 +16,11 @@
       const deepDetail = /\/\d{4}\/[^/]+/.test(location.pathname) || /\/detalle$/.test(location.hash);
       let open = true;
       const desktop = { side: 'left', width: 380, height: 320 };
-      const mobile = { side: 'bottom', height: 0 };
+      const narrow = matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 960px) and (max-height: 500px)').matches;
       try {
         open = localStorage.getItem('owasp-detail-open') !== 'false';
         const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
-        for (const [dock, value] of [[desktop, saved.desktop], [mobile, saved.mobile]]) {
+        for (const [dock, value] of [[desktop, saved.desktop]]) {
           if (!value) continue;
           if (['left', 'right', 'bottom'].includes(value.side)) dock.side = value.side;
           for (const size of ['width', 'height']) if (Number.isFinite(value[size]) && value[size] > 0) dock[size] = value[size];
@@ -28,10 +28,9 @@
         if (!saved.desktop) desktop.side = localStorage.getItem('owasp-dock') || 'left';
       } catch {}
       // A legacy matrix hash explicitly requests a selection without detail.
-      if (deepDetail || (open && !location.hash.startsWith('#/'))) {
-        const narrow = matchMedia('(max-width: 640px)').matches;
-        const dock = narrow ? mobile : desktop;
-        const side = narrow ? 'bottom' : ['left', 'right', 'bottom'].includes(dock.side) ? dock.side : 'left';
+      if (!narrow && (deepDetail || (open && !location.hash.startsWith('#/')))) {
+        const dock = desktop;
+        const side = ['left', 'right', 'bottom'].includes(dock.side) ? dock.side : 'left';
         const size = side === 'bottom' ? dock.height : dock.width;
         root.dataset.initialDetail = 'true';
         root.dataset.initialDock = side;
@@ -123,7 +122,7 @@
         </div>
       </div>
 
-      <dialog class="detail-modal" id="detail-modal" aria-labelledby="detail-title">
+      <dialog class="detail-modal" id="detail-modal" role="dialog" aria-labelledby="detail-title">
         <div class="dock-resizer" id="dock-resizer" role="separator" tabindex="0" aria-controls="timeline detail-modal" aria-label="Cambiar tamaño del panel" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="600" aria-valuenow="320"></div>
         <article class="detail-page" id="detail-page"></article>
       </dialog>

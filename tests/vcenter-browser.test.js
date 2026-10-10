@@ -13,6 +13,10 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
     await page.goto('http://localhost:4195');
     await page.waitForTimeout(1300);
     for (const [width, height] of [[1440,800], [1440,900], [1440,1000], [1440,1200], [1024,768], [390,844]]) {
+      if (width <= 640 && await page.locator('#detail-modal').evaluate(el => el.open)) {
+        await page.locator('.detail-back').click();
+        await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
+      }
       await page.setViewportSize({ width, height });
       for (const theme of ['light', 'dark']) {
         await page.locator('#theme-select').click(); await page.locator(`[data-theme-choice="${theme}"]`).click();
@@ -37,8 +41,10 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
               } else {
                 if (!await page.locator('#detail-modal').evaluate(el => el.open)) await page.locator('.risk-detail').first().click();
                 if (width > 760) { await page.locator('[data-action="overflow"]').click(); await page.locator(`#dock-select [data-dock="${dock}"]`).click(); }
-                await page.locator('#dock-resizer').focus();
-                await page.keyboard.press('ArrowUp');
+                if (width > 640) {
+                  await page.locator('#dock-resizer').focus();
+                  await page.keyboard.press('ArrowUp');
+                }
               }
               await page.waitForTimeout(300);
               assert.equal(await page.locator('.explorer-shell').evaluate(el => el.classList.contains('has-detail')), dock !== 'closed');
@@ -65,6 +71,10 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
               if (theme === 'light' && (count === 3 || family === 'llm' && count === 2) && ((width === 1440 && height === 1000 && family === 'web' && ['closed','bottom'].includes(dock)) || (width === 1440 && height === 1200 && family === 'llm' && dock === 'closed') || (width === 390 && family === 'web' && dock === 'closed'))) {
                 await page.screenshot({ path: `/workspace/tmp/owasp-vcenter-${width}x${height}-${family}-${dock}.png` });
               }
+            }
+            if (width <= 640) {
+              await page.locator('.detail-back').click();
+              await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
             }
           }
         }

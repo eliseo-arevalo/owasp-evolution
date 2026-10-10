@@ -50,6 +50,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
     for (const item of pilot) {
       await page.goto(route(item.id));
       await page.locator('#detail-modal[open] .attack-diagram').waitFor();
+      await page.evaluate(() => document.fonts.ready);
       const motion = await page.locator('#detail-page .attack-diagram').evaluate(async svg => {
         const initial = svg.getBoundingClientRect().toJSON();
         const timings = svg.getAnimations({ subtree: true }).map(animation => animation.effect.getComputedTiming());

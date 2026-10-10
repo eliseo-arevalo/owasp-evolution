@@ -49,12 +49,13 @@ test('menus, mobile names and locked detail emphasis in Chrome', { skip: !proces
       await page.locator('.risk-card:not(.is-selected) .risk-focus').first().focus();
       await page.locator('.risk-card:not(.is-selected)').first().dispatchEvent('pointerover', { pointerType: width === 390 ? 'touch' : 'mouse' });
       assert.equal(await page.locator('.is-selected.is-anchor').count(), 1);
-      await button.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Escape');
+      const detailMenu = width === 390 ? page.locator('[data-action=overflow]') : button;
+      await detailMenu.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Escape');
       assert.equal(await page.locator('#detail-modal').evaluate(panel => panel.open), true);
       if (width === 390) assert.equal(await page.locator('#dock-select').isVisible(), false);
       assert.deepEqual(errors, []);
       await page.screenshot({ path: `/workspace/tmp/owasp-menu-${width}-${theme}.png`, fullPage: true });
-      await button.click();
+      await detailMenu.click();
       await page.screenshot({ path: `/workspace/tmp/owasp-menu-${width}-${theme}-open.png`, fullPage: true });
       await page.close();
     }

@@ -15,7 +15,7 @@ Node genera `dist/`; `npm start` lo sirve en el puerto 4173. `SITE_URL` define e
 
 ## Interacción y exportación
 
-Las seis pestañas del detalle permanecen visibles en paneles estrechos. El encabezado muestra el nombre completo; el panel admite posición izquierda, derecha, inferior y pantalla completa. `?` abre la ayuda de atajos: flechas navegan, Enter abre el detalle y Escape lo cierra. El menú de exportación guarda la matriz en PNG, SVG, CSV, JSON o Markdown; el detalle permite exportar el elemento en Markdown y copiar su enlace. Los diagramas y ejemplos se incluyen también en páginas sin JavaScript.
+Las seis pestañas del detalle permanecen visibles en paneles estrechos. El encabezado muestra el nombre completo; en escritorio el panel admite posición izquierda, derecha, inferior y pantalla completa. En móvil (hasta 640 px o teléfonos táctiles en horizontal), la primera visita muestra la matriz y tocar una categoría abre un diálogo de pantalla completa, con zonas seguras, bloqueo del desplazamiento de fondo y foco contenido. Cerrar, Escape o Atrás vuelve a la matriz y restaura el foco; anterior/siguiente, pestañas y exportación siguen disponibles. Al ampliar la ventana se recupera el acoplamiento de escritorio. `?` abre la ayuda de atajos: flechas navegan, Enter abre el detalle y Escape lo cierra. El menú de exportación guarda la matriz en PNG, SVG, CSV, JSON o Markdown; el detalle permite exportar el elemento en Markdown y copiar su enlace. Los diagramas y ejemplos se incluyen también en páginas sin JavaScript.
 
 ## Rutas y SEO
 

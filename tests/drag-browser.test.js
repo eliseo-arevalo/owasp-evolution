@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 
-test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.MOTION_PLAYWRIGHT }, async () => {
+test('Chrome: pointer dock drag and resize', { skip: !process.env.MOTION_PLAYWRIGHT }, async () => {
   const { chromium } = await import(process.env.MOTION_PLAYWRIGHT);
   const server = spawn('python3', ['-m', 'http.server', '4187', '-d', 'dist'], { stdio: 'ignore' });
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
@@ -73,46 +73,5 @@ test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.M
     await page.reload(); await page.waitForTimeout(1000); await page.locator('.risk-detail').click(); await page.waitForTimeout(400);
     assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
     await page.close();
-    const mobile = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-    await mobile.addInitScript(()=>localStorage.setItem('owasp-dock','right'));
-    await mobile.goto('http://localhost:4187/#/web/2025/A01'); await mobile.waitForTimeout(1000);
-    await mobile.locator('.risk-detail').click(); await mobile.waitForTimeout(400);
-    assert.equal(await mobile.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
-    assert.equal(await mobile.locator('#dock-select').isVisible(),false);
-    assert.equal(await mobile.locator('#dock-select button').first().isDisabled(),true);
-    const cdp = await mobile.context().newCDPSession(mobile);
-    const touch = async (target, wait=160) => {
-      const b=await mobile.locator('#dock-resizer').boundingBox();
-      const x=b.x+b.width/2, y=b.y+b.height/2;
-      await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
-      for(let i=1;i<=12;i++) {
-        await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y+(target-y)*i/12}]});
-        await mobile.waitForTimeout(16); check(await measure(mobile));
-      }
-      await mobile.waitForTimeout(wait);
-      await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-      await mobile.waitForTimeout(400);
-    };
-    for(const ratio of [.25,.5,.9]) {
-      const b=await mobile.locator('.explorer-shell').boundingBox();
-      await touch(b.y+b.height-12-(b.height-22)*ratio);
-      check(await measure(mobile));
-      const size=Number(await mobile.locator('#dock-resizer').getAttribute('aria-valuenow'));
-      assert.ok(Math.abs(size-(b.height-22)*ratio)<3,`${ratio}: ${size}`);
-      await mobile.screenshot({path:`/workspace/tmp/owasp-drag-mobile-${ratio}.png`});
-    }
-    const stored = await mobile.evaluate(()=>JSON.parse(localStorage.getItem('owasp-dock-layout')));
-    assert.equal(stored.mobile.side,'bottom');
-    assert.ok(stored.mobile.height > 500);
-    await mobile.setViewportSize({width:800,height:844}); await mobile.waitForTimeout(350);
-    assert.equal(await mobile.locator('.explorer-shell').getAttribute('data-dock'),'right');
-    await mobile.setViewportSize({width:390,height:844}); await mobile.waitForTimeout(350);
-    check(await measure(mobile));
-    const scroll=mobile.locator('.timeline-scroll');
-    await scroll.evaluate(el=>el.scrollLeft=250); assert.ok(await scroll.evaluate(el=>el.scrollLeft)>0); check(await measure(mobile));
-    await touch(830);
-    assert.equal(await mobile.locator('#detail-modal').evaluate(el=>el.open),false);
-    await mobile.screenshot({path:'/workspace/tmp/owasp-drag-mobile-closed.png'});
-    await mobile.close();
   } finally { await browser.close(); server.kill(); }
 });

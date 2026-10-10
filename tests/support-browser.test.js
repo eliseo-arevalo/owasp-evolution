@@ -20,7 +20,12 @@ test('support links switch EN/ES, retain chrome geometry and fit narrow screens'
       }));
       const before = await geometry();
       for (const language of ['es', 'en', 'es']) {
+        if (width <= 640) {
+          await page.locator('[data-action=close]').click();
+          await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
+        }
         await page.locator(`[data-language="${language}"]`).click();
+        if (width <= 640) await page.locator('.risk-detail').click();
         const label = language === 'es' ? 'Invítame un café' : 'Buy me a coffee';
         for (const selector of ['.support-button', '#detail-sources .support-link']) {
           const link = page.locator(selector);
@@ -33,6 +38,10 @@ test('support links switch EN/ES, retain chrome geometry and fit narrow screens'
         assert.equal(await page.locator('#detail-sources .support-link').textContent(), label);
         assert.deepEqual(await geometry(), before, '0px chrome shift');
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      }
+      if (width <= 640) {
+        await page.locator('[data-action=close]').click();
+        await page.waitForFunction(() => !document.querySelector('#detail-modal').open);
       }
       const button = page.locator('.support-button');
       assert.deepEqual((await button.boundingBox()).width, 32);

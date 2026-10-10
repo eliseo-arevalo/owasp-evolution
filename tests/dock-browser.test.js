@@ -45,7 +45,7 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
     animationSamples.push(samples.length);
   };
   try {
-    for(const width of [1440,390]) for(const theme of ['dark','light']) {
+    for(const width of [1440]) for(const theme of ['dark','light']) {
       const page = await browser.newPage({viewport:{width,height:900},colorScheme:theme,locale:'es-SV'});
       const errors=[]; page.on('pageerror',e=>errors.push(e.message));
       await page.addInitScript(({theme}) => {
@@ -83,9 +83,10 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
         await page.locator('#dock-resizer').focus();
         await page.keyboard.press(dock==='bottom'?'ArrowUp':'ArrowRight');
         await page.waitForTimeout(350);check(await measure(page));
-        // Resize viewport with an open dock, including forced bottom on mobile.
-        await page.setViewportSize({width:390,height:900});await page.waitForTimeout(350);check(await measure(page));
-        assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
+        // Narrow layouts promote the dock to a modal, then restore its desktop side.
+        await page.setViewportSize({width:390,height:900});await page.waitForTimeout(350);
+        assert.equal(await page.locator('#detail-modal').evaluate(d => d.matches(':modal')), true);
+        assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),'fullscreen');
         await page.setViewportSize({width,height:900});await page.waitForTimeout(350);check(await measure(page));
         await sampleAnimation(page,()=>page.keyboard.press('Escape'));
         await page.waitForTimeout(100);
