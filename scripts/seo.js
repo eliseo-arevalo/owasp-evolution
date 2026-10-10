@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { iconSVG, attackSectionHTML } from '../src/visuals.js';
+import { iconSVG, attackSectionHTML, getVisual } from '../src/visuals.js';
 import { catalog } from '../src/data.js';
 import { localizeCatalog, translate } from '../src/i18n.js';
 import { pathFor } from '../src/routes.js';
@@ -24,11 +24,15 @@ export function generateSeo(data = catalog) {
       const title = item ? `${item.id}: ${item.name} · ${edition.year} · ${language.toUpperCase()} · OWASP Evolution` : family ? `${family.label} · ${language.toUpperCase()} · OWASP Evolution` : `OWASP Evolution · ${language === 'es' ? 'Evolución de riesgos' : 'Risk evolution'}`;
       const description = item ? `${item.id} (${edition.year}): ${item.summary}` : family ? family.description : t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.');
       const alternates = ['es','en'].map(lang => `<link rel="alternate" hreflang="${lang}" href="${origin}${pathFor(route,data,lang)}">`).join('\n') + `\n<link rel="alternate" hreflang="x-default" href="${origin}${pathFor(route,data,'en')}">`;
-      let content = `<h1>${item ? iconSVG(family.id, edition.year, item.id, item.name) : ''}${escape(item ? `${item.id}: ${item.name} · ${edition.year}` : title)}</h1><p>${escape(description)}</p>`;
+      let content = `<h1>${item ? iconSVG(family.id, edition.year, item.id, item.name) : ''}${escape(item ? `${item.id}: ${item.name} · ${edition.year}` : title)}</h1><p${item ? ' class="detail-summary"' : ''}>${escape(item ? item.summary.split('. ')[0] : description)}</p>`;
       if (item) {
-        content += attackSectionHTML(family.id, edition.year, item.id, t);
+        const rawCwes = item.cwes || item.cwe || [];
+        const cwes = Array.isArray(rawCwes) ? rawCwes : [rawCwes];
+        const hasAttack = Boolean(getVisual(family.id, edition.year, item.id));
+        const nav = [['overview', 'Resumen'], ...(hasAttack ? [['attack', 'Ataque'], ['example', 'Ejemplo']] : []), ['prevention', 'Prevención'], ['lineage', 'Linaje'], ['sources', 'Fuentes']];
+        content = `<header class="detail-header">${content}</header><nav class="detail-section-nav" aria-label="${t('Secciones del detalle')}">${nav.map(([id, label]) => `<a href="#detail-${id}">${t(label)}</a>`).join('')}</nav><div class="detail-grid"><div class="detail-primary"><section id="detail-overview" class="detail-section detail-overview"><h2>${t('Resumen')}</h2><p>${escape(item.summary)}</p></section>${attackSectionHTML(family.id, edition.year, item.id, t)}</div><div class="detail-secondary">`;
         const lineage = getLineage(localized, family.id, edition.year, item.id);
-        content += `<h2>${t('Prevención prioritaria')}</h2><ul>${item.prevention.map(p=>`<li>${escape(p)}</li>`).join('')}</ul><h2>${t('Linaje en el tiempo')}</h2><ol>${lineage.nodes.map(n=>`<li><a href="${pathFor({family:family.id,year:n.year,id:n.id},data,language)}">${n.year} · ${n.id}: ${escape(n.name)}</a> ${escape(n.change)}</li>`).join('')}</ol><ul>${lineage.edges.map(e=>`<li>${escape(e.from)} → ${escape(e.to)}: ${escape(e.note)}</li>`).join('')}</ul><a href="${escape(item.source)}">${t('Abrir fuente oficial ↗')}</a>`;
+        content += `<section id="detail-prevention" class="detail-section"><h2>${t('Prevención prioritaria')}</h2><ul>${item.prevention.map(p=>`<li>${escape(p)}</li>`).join('')}</ul></section><section id="detail-lineage" class="detail-section"><h2>${t('Linaje en el tiempo')}</h2><ol>${lineage.nodes.map(n=>`<li><a href="${pathFor({family:family.id,year:n.year,id:n.id},data,language)}">${n.year} · ${n.id}: ${escape(n.name)}</a> ${escape(n.change)}</li>`).join('')}</ol><ul>${lineage.edges.map(e=>`<li>${escape(e.from)} → ${escape(e.to)}: ${escape(e.note)}</li>`).join('')}</ul></section><section id="detail-sources" class="detail-section"><h2>${t('Fuentes')}</h2><ul><li><a class="source-link" href="${escape(item.source)}">${t('Abrir fuente oficial ↗')}</a></li>${cwes.filter(c => /^(CWE-)?\d+$/.test(String(c))).map(c => `<li><a href="https://cwe.mitre.org/data/definitions/${String(c).replace(/^CWE-/, '')}.html">CWE-${String(c).replace(/^CWE-/, '')}</a></li>`).join('')}</ul></section></div></div>`;
       } else {
         for (const f of family ? [family] : Object.values(localized.families)) content += `<h2><a href="${pathFor({family:f.id},data,language)}">${escape(f.label)}</a></h2>${f.editions.map(e=>`<h3>${escape(e.label)}</h3><ul>${e.items.map(i=>`<li><a href="${pathFor({family:f.id,year:e.year,id:i.id},data,language)}">${i.id}: ${escape(i.name)}</a></li>`).join('')}</ul>`).join('')}`;
       }

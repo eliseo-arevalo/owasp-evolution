@@ -65,8 +65,8 @@ test('detail buttons and row double click open the modal', () => {
 test('docked detail closes with Back and Escape, and restores row focus', () => {
   assert.match(app, /close.addEventListener\('click', returnToMatrix\)/);
   assert.match(app, /detailModal.addEventListener\('cancel'/);
-  assert.match(app, /event.preventDefault\(\);\s*returnToMatrix\(\)/);
-  assert.match(app, /event.key === 'Escape'[\s\S]*?returnToMatrix\(\)/);
+  assert.match(app, /if \(fullscreen\) toggleFullscreen\(\);\s*else returnToMatrix\(\)/);
+  assert.match(app, /command === 'escape'[\s\S]*?returnToMatrix\(\)/);
   assert.match(app, /const resolveDetailReturn = .*is-selected .risk-focus/);
   assert.match(app, /dismissModal\(\(\) => \{\s*scheduleFocus\(resolveDetailReturn\)/);
   assert.match(app, /modal\.close\(\);\s*done\(\);/);
@@ -85,13 +85,14 @@ test('rendering a shared detail keeps the matrix and years, then closes to the s
     yearFilters: new Map([['web', years]]),
     getRisk: () => ({ id: 'A01', name: 'Access control' }),
     getLineage: () => ({ nodes: [] }),
-    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
-    syncThemeLabel() {}, updateEmphasis() {},
+    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false, detailSignature: '', fullscreen: false, reducedMotion: () => true,
+    syncThemeLabel() {}, updateEmphasis() {}, t: text => text,
     document: { querySelectorAll: () => [], querySelector: () => ({}), body: { classList: { toggle() {} } } },
     elements: {
+      search: { setAttribute() {} },
       matrixPage: { hidden: false },
       detailModal: { show: () => calls.push('open') },
-      detailPage: { querySelector: () => ({}) },
+      detailPage: { contains: () => false, querySelector: () => ({}) },
       familyDescription: {}, timelineTitle: {}, timelineHelp: {}, detailTriggerLabel: {},
     },
     captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {}, visibleEditions: () => [2021, 2025],
@@ -125,10 +126,10 @@ test('selecting another row keeps the matrix and only moves the selection', () =
     yearFilters: new Map([['web', new Set([2025])]]),
     getRisk: () => ({ id: route.id, name: '' }),
     getLineage: () => ({ nodes: [] }),
-    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
-    syncThemeLabel() {}, updateEmphasis() {},
+    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false, detailSignature: '', fullscreen: false, reducedMotion: () => true,
+    syncThemeLabel() {}, updateEmphasis() {}, t: text => text,
     document: { querySelectorAll: () => [], querySelector: () => ({}), body: { classList: { toggle() {} } } },
-    elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
+    elements: { search: { setAttribute() {} }, detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
     captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {},
     renderTimeline: () => calls.push('matrix'), renderLineageSummary: () => calls.push('path'),
     applySelection: (key) => calls.push(`select ${key}`),
@@ -165,10 +166,10 @@ function renderHarness(route) {
     yearFilters: new Map([['web', new Set([2021, 2025])], ['llm', new Set([2025])]]),
     getRisk: () => ({ id: route().id, name: '' }),
     getLineage: () => ({ nodes: [] }),
-    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false,
-    syncThemeLabel() {}, updateEmphasis() {},
+    applyStaticLanguage() {}, language: 'es', matrixSignature: '', structureSignature: '', wasDetail: false, detailSignature: '', fullscreen: false, reducedMotion: () => true,
+    syncThemeLabel() {}, updateEmphasis() {}, t: text => text,
     document: { querySelectorAll: () => [], querySelector: () => ({}), body: { classList: { toggle() {} } } },
-    elements: { detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
+    elements: { search: { setAttribute() {} }, detailTriggerLabel: {}, familyDescription: {}, timelineTitle: {} },
     captureFamily() { return {}; }, crossfadeFamily() {}, renderFamilyNav() {}, renderEditionFilter() {}, renderLineageSummary() {},
     renderTimeline: (family, ease) => calls.push(`matrix ${family.id} ease=${ease}`),
     applySelection: (key, { motion }) => calls.push(`select ${key} motion=${motion}`),
@@ -280,4 +281,14 @@ test('double click selects once and opens detail; keyboard click still selects',
   assert.deepEqual(calls, ['select 2025:A02', 'detail']);
   handlers.get('click')({ detail: 0 });
   assert.equal(calls.at(-1), 'select 2025:A02');
+});
+
+
+test('single selection preserves an open detail and pushes the new category URL', () => {
+  const { context, renders, backs } = setup();
+  context.currentRoute.detail = true;
+  vm.runInContext("navigate({family: 'web', year: 2025, id: 'A03'});", context);
+  assert.equal(context.history.state.route.detail, true);
+  assert.equal(context.location.hash, pathFor({family:'web',year:2025,id:'A03'},catalog,'es'));
+  assert.equal(renders(), 1); assert.equal(backs(), 0);
 });

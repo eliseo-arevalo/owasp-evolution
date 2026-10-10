@@ -1,3 +1,4 @@
+import { iconPaths } from './icons.js';
 // Vendored Phosphor Icons duotone paths, MIT © 2023 Phosphor Icons.
 // Upstream core commit 2b75f3ad12b420c9504ef05df8d2564a28f8500e; see LICENSES/third-party.md.
 // Only secondary fill styling is adapted; outline geometry remains upstream.
@@ -105,103 +106,106 @@ export function iconSVG(family, year, id, title = '', className = 'risk-icon') {
   return `<svg xmlns="http://www.w3.org/2000/svg" class="${escape(className)} visual-${visual.accent}" data-icon="${visual.icon}" viewBox="0 0 256 256" width="40" height="40" fill="currentColor" ${title ? 'role="img"' : 'aria-hidden="true"'} focusable="false">${title ? `<title>${escape(title)}</title>` : ''}<rect class="icon-tile" width="256" height="256" rx="64"/><g transform="translate(28 28) scale(.78125)">${visual.glyph}</g></svg>`;
 }
 
-// Layout helpers share typography and motion, never the attack topology.
+// All geometry uses an integer grid. Icon tiles and labels occupy separate lanes.
 function drawing(t) {
   let step = 0;
-  const text = (x, y, label, cls = 'attack-label', anchor = 'middle') => `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${escape(t(label))}</text>`;
+  const text = (x, y, label, cls = 'attack-label', anchor = 'middle') => `<text class="attack-label ${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${escape(t(label))}</text>`;
   const group = content => `<g class="attack-node" style="--step:${step++ % 6}">${content}</g>`;
-  const card = (x, y, w, h, labels, accent = false) => group(`<rect class="attack-box${accent ? ' attack-hot' : ''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${labels.map((label, i) => text(x + w / 2, y + h / 2 + 4 + (i - (labels.length - 1) / 2) * 16, label)).join('')}`);
+  const symbol = (name, x, y, size = 32) => `<svg data-actor="${name}" x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${iconPaths(name)}</svg>`;
+  const actor = (x, y, name, label) => group(`<rect class="attack-box" x="${x}" y="${y}" width="48" height="48" rx="10"/>${symbol(name, x + 8, y + 8)}${text(x + 24, y + 64, label)}`);
+  const card = (x, y, w, h, labels, hot = false, icon = '') => group(`<rect class="attack-box${hot ? ' attack-hot' : ''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${icon ? symbol(icon, x + 8, y + (h - 24) / 2, 24) : ''}${labels.map((label, i) => text(x + w / 2 + (icon ? 16 : 0), y + h / 2 + 4 + (i - (labels.length - 1) / 2) * 16, label)).join('')}`);
+  // Identical open arrowheads, explicitly oriented at each endpoint.
   const path = (d, muted = false) => `<path class="attack-path${muted ? ' attack-muted' : ''}" style="--step:${step++ % 6}" d="${d}" pathLength="1"/>`;
-  const person = (x, y, label, accent = false) => group(`<circle class="attack-box${accent ? ' attack-hot' : ''}" cx="${x}" cy="${y}" r="11"/><path class="attack-outline" d="M${x - 19} ${y + 31}v-5a19 19 0 0 1 38 0v5"/>${text(x, y + 48, label)}`);
-  return { text, group, card, path, person };
+  return { text, group, card, path, actor, symbol };
 }
 
 export function diagramSVG(family, year, id, t = text => text) {
   const visual = getVisual(family, year, id);
   if (!visual) return '';
-  const { text, group, card, path, person } = drawing(t);
+  const { text, group, card, path, actor } = drawing(t);
   let content = '';
   switch (visual.layout) {
     case 'idor-cross-user':
-      content = person(32, 24, 'Alice') + person(286, 120, 'Bob', true)
-        + card(89, 12, 218, 48, ['GET /invoices/1042 → 1043'], true)
-        + path('M52 28h30m-5-4 5 4-5 4')
-        + card(90, 88, 148, 46, ['API sin autorización'])
-        + path('M167 60v22m-4-5 4 5 4-5')
-        + card(90, 151, 148, 30, ['Factura de Bob'], true)
-        + path('M164 134v11m-4-5 4 5 4-5')
-        + path('M90 166H32V80m-4 5 4-5 4 5');
+      content = actor(8, 8, 'user', 'Alice') + actor(264, 112, 'user-circle', 'Bob')
+        + card(88, 8, 224, 40, ['GET /invoices/1042 → 1043'], true)
+        + path('M56 28H80m-5-4 5 4-5 4')
+        + card(88, 80, 160, 40, ['API sin autorización'], false, 'globe')
+        + path('M168 48v24m-4-5 4 5 4-5')
+        + card(88, 152, 160, 32, ['Factura de Bob'], true, 'database')
+        + path('M168 120v24m-4-5 4 5 4-5')
+        + path('M88 168H32V80m-4 5 4-5 4 5');
       break;
     case 'exposed-admin':
-      content = group(`<rect class="attack-box" x="80" y="15" width="230" height="166" rx="10"/><path class="attack-outline" d="M80 43h230"/>${text(93, 33, '/admin', 'attack-code', 'start')}`)
-        + person(30, 86, 'Visitante') + path('M51 96h23m-5-4 5 4-5 4')
-        + card(99, 59, 192, 45, ['admin / admin'], true)
-        + path('M195 104v16m-4-5 4 5 4-5')
-        + card(99, 127, 192, 36, ['Control del servicio'], true);
+      content = actor(8, 64, 'detective', 'Atacante')
+        + card(88, 8, 224, 40, ['/admin público'], false, 'globe')
+        + card(88, 80, 224, 40, ['admin / admin'], true, 'lock')
+        + path('M56 88H80m-5-4 5 4-5 4') + path('M200 48v24m-4-5 4 5 4-5')
+        + card(88, 152, 224, 32, ['Control del servicio'], true, 'browser')
+        + path('M200 120v24m-4-5 4 5 4-5');
       break;
     case 'poisoned-dependency':
-      content = card(8, 14, 96, 40, ['App']) + card(8, 76, 96, 40, ['sample-tools'])
-        + path('M56 54v16m-4-5 4 5 4-5', true)
-        + card(8, 138, 125, 42, ['tiny-parser', 'Comprometido'], true)
-        + path('M56 116v16m-4-5 4 5 4-5')
-        + card(185, 137, 125, 42, ['Build + artefacto'], true)
-        + path('M133 159h46m-5-4 5 4-5 4')
-        + group(`${text(243, 32, 'Dependencia transitiva', 'attack-role')}<path class="attack-outline" d="M245 68v56m-4-5 4 5 4-5"/>${text(243, 54, 'Código heredado')}`);
+      content = card(8, 8, 128, 40, ['App'], false, 'browser')
+        + card(8, 80, 128, 40, ['sample-tools'], false, 'package')
+        + card(8, 152, 128, 32, ['tiny-parser'], true, 'package')
+        + path('M72 48v24m-4-5 4 5 4-5', true) + path('M72 120v24m-4-5 4 5 4-5')
+        + actor(216, 8, 'detective', 'Atacante')
+        + path('M240 80v56H120v8m-4-5 4 5 4-5')
+        + card(184, 152, 128, 32, ['Build + artefacto'], true)
+        + path('M136 168h40m-5-4 5 4-5 4') + group(text(188, 104, 'Comprometido', 'attack-accent'));
       break;
     case 'password-comparison':
-      content = card(9, 12, 302, 38, ['Base de contraseñas filtrada'])
-        + path('M160 50v18H80v17m-4-5 4 5 4-5') + path('M160 68h80v17m-4-5 4 5 4-5', true)
-        + card(9, 91, 143, 46, ['MD5 sin sal'], true) + card(168, 91, 143, 46, ['Argon2id + sal'])
-        + group(`${text(80, 161, 'Pruebas rápidas', 'attack-accent')}${text(240, 161, 'Coste adaptativo')}${text(160, 184, 'Misma contraseña · distinta protección', 'attack-role')}`);
+      content = card(8, 8, 304, 40, ['Base de contraseñas filtrada'], false, 'database')
+        + path('M160 48v24H80v16m-4-5 4 5 4-5') + path('M160 72h80v16m-4-5 4 5 4-5', true)
+        + card(8, 96, 144, 40, ['MD5 sin sal'], true, 'lock')
+        + card(168, 96, 144, 40, ['Argon2id + sal'], false, 'shield-check')
+        + group(text(80, 160, 'Pruebas rápidas', 'attack-accent') + text(240, 160, 'Coste adaptativo') + text(160, 184, 'Misma contraseña · distinta protección', 'attack-role'));
       break;
     case 'input-to-query':
-      content = card(9, 12, 302, 38, ['name: O\'Neil'], true)
-        + path('M160 50v26m-4-5 4 5 4-5')
-        + group(`<rect class="attack-box" x="9" y="83" width="302" height="66" rx="8"/>${text(23, 105, 'SELECT id FROM users', 'attack-code', 'start')}<text class="attack-code" x="23" y="130">WHERE name = '<tspan class="attack-accent">O'Neil</tspan>'</text>`)
-        + path('M160 149v14m-4-5 4 5 4-5')
+      content = actor(8, 8, 'detective', 'Atacante')
+        + card(88, 8, 224, 40, ["name: O'Neil"], true, 'code') + path('M56 28H80m-5-4 5 4-5 4')
+        + path('M200 48v32m-4-5 4 5 4-5')
+        + group(`<rect class="attack-box" x="8" y="88" width="304" height="64" rx="8"/>${text(24, 112, 'SELECT id FROM users', 'attack-code', 'start')}<text class="attack-code" x="24" y="136">WHERE name = '<tspan class="attack-accent">O'Neil</tspan>'</text>`)
         + group(text(160, 184, 'La entrada cambia la sintaxis', 'attack-accent'));
       break;
     case 'coupon-reuse-loop':
-      content = card(9, 24, 112, 44, ['Carrito']) + card(197, 24, 114, 44, ['WELCOME10'], true)
-        + path('M121 46h70m-5-4 5 4-5 4')
-        + card(94, 124, 145, 44, ['Descuento +10'], true)
-        + path('M254 68v78h-9m5-4-5 4 5 4')
-        + path('M94 146H65V74m-4 5 4-5 4 5')
-        + group(`${text(160, 91, 'Repetir sin límite', 'attack-accent')}${text(160, 187, 'Falta la regla: un uso por cliente', 'attack-role')}`);
+      content = card(8, 16, 112, 48, ['Carrito'], false, 'shopping-cart')
+        + card(200, 16, 112, 48, ['WELCOME10'], true)
+        + path('M120 40h72m-5-4 5 4-5 4')
+        + card(88, 128, 160, 40, ['Descuento +10'], true)
+        + path('M256 64v84h-8m5-4-5 4 5 4') + path('M88 148H64V72m-4 5 4-5 4 5')
+        + group(text(160, 96, 'Repetir sin límite', 'attack-accent') + text(160, 184, 'Falta la regla: un uso por cliente', 'attack-role'));
       break;
     case 'credential-fan-in':
-      content = card(9, 12, 89, 30, ['alice : •••']) + card(9, 60, 89, 30, ['bob : •••']) + card(9, 108, 89, 30, ['carol : •••'])
-        + path('M98 27h20v48h15m-5-4 5 4-5 4') + path('M98 75h35m-5-4 5 4-5 4') + path('M98 123h20V75', true)
-        + card(140, 48, 171, 55, ['/login', 'Sin límite ni MFA'], true)
-        + path('M225 103v30m-4-5 4 5 4-5')
-        + card(140, 140, 171, 36, ['Cuenta tomada'], true)
-        + group(text(64, 170, 'Credenciales robadas', 'attack-role'));
+      content = actor(8, 8, 'robot', 'Bot') + card(8, 96, 104, 56, ['alice : •••', 'bob : •••'], false)
+        + path('M32 80v8m-4-5 4 5 4-5', true) + path('M112 124h32V40h24m-5-4 5 4-5 4')
+        + card(176, 16, 136, 48, ['/login', 'Sin límite ni MFA'], true)
+        + path('M244 64v48m-4-5 4 5 4-5')
+        + actor(220, 120, 'user-circle', 'Cuenta tomada')
+        + group(text(8, 184, 'Credenciales robadas', 'attack-role', 'start'));
       break;
     case 'unsigned-update':
-      content = group(`<path class="attack-box attack-hot" d="M16 15h64l24 24v74H16Z"/><path class="attack-outline" d="M80 15v24h24"/>${text(60, 68, 'update.bin', 'attack-code')}${text(60, 91, 'Modificado', 'attack-accent')}`)
-        + path('M104 65h35m-5-4 5 4-5 4')
-        + group(`<path class="attack-boundary" d="M150 8v111"/>${text(163, 35, 'Firma omitida', 'attack-accent', 'start')}`)
-        + card(178, 51, 132, 49, ['Instalar'], true)
-        + path('M244 100v38m-4-5 4 5 4-5')
-        + card(99, 145, 211, 34, ['Código no verificado'], true)
-        + group(text(62, 146, 'Confianza', 'attack-role'));
+      content = actor(8, 8, 'file-arrow-down', 'update.bin')
+        + card(112, 8, 200, 48, ['Firma omitida'], true, 'lock')
+        + path('M56 32h48m-5-4 5 4-5 4')
+        + card(112, 88, 200, 40, ['Instalar'], true, 'package')
+        + path('M212 56v24m-4-5 4 5 4-5')
+        + card(112, 152, 200, 32, ['Código no verificado'], true, 'code')
+        + path('M212 128v16m-4-5 4 5 4-5')
+        + group(text(44, 96, 'Modificado', 'attack-role'));
       break;
     case 'silent-timeline':
-      content = path('M25 75h278m-5-4 5 4-5 4')
-        + group(`<circle class="attack-dot" cx="42" cy="75" r="6"/>${text(42, 26, '09:00', 'attack-code')}${text(42, 49, 'Intentos')}`)
-        + group(`<circle class="attack-dot" cx="151" cy="75" r="6"/>${text(151, 26, '09:05', 'attack-code')}${text(151, 49, 'Acceso')}`)
-        + group(`<circle class="attack-dot" cx="274" cy="75" r="6"/>${text(274, 26, '09:10', 'attack-code')}${text(274, 49, 'Abuso')}`)
-        + path('M42 90v28m109-28v28m123-28v28', true)
-        + card(9, 125, 302, 48, ['Sin eventos → sin alertas', 'La respuesta nunca comienza'], true);
+      content = actor(16, 8, 'robot', '09:00') + actor(136, 8, 'user-circle', '09:05') + actor(256, 8, 'detective', '09:10')
+        + path('M64 32h64m-5-4 5 4-5 4') + path('M184 32h64m-5-4 5 4-5 4')
+        + group(text(40, 96, 'Intentos') + text(160, 96, 'Acceso') + text(280, 96, 'Abuso'))
+        + card(8, 128, 304, 56, ['Sin eventos → sin alertas', 'La respuesta nunca comienza'], true, 'bell-slash');
       break;
     case 'fail-open-branch':
-      content = card(65, 8, 190, 34, ['Comprobar permiso'])
-        + path('M160 42v24m-4-5 4 5 4-5')
-        + group(`<path class="attack-box" d="m160 72 66 30-66 30-66-30Z"/>${text(160, 106, '¿Respuesta?')}`)
-        + path('M94 102H49v34m-4-5 4 5 4-5', true)
-        + path('M226 102h47v34m-4-5 4 5 4-5')
-        + group(`${text(43, 84, 'No autorizado', 'attack-role')}${text(278, 84, 'Timeout', 'attack-accent')}`)
-        + card(9, 145, 122, 34, ['Denegar']) + card(189, 145, 122, 34, ['Permitir'], true);
+      content = card(64, 8, 192, 40, ['Comprobar permiso'], false, 'shield-check')
+        + path('M160 48v24m-4-5 4 5 4-5')
+        + card(96, 80, 128, 40, ['¿Respuesta?'], false, 'warning')
+        + path('M96 100H64v44m-4-5 4 5 4-5', true) + path('M224 100h40v44m-4-5 4 5 4-5')
+        + group(text(48, 80, 'No autorizado', 'attack-role') + text(272, 80, 'Timeout', 'attack-accent'))
+        + card(8, 152, 112, 32, ['Denegar'], false, 'lock') + card(200, 152, 112, 32, ['Permitir'], true, 'user');
       break;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" class="attack-diagram visual-${visual.accent}" data-layout="${visual.layout}" viewBox="0 0 320 196" width="320" height="196" role="img" focusable="false"><title>${escape(id)} · ${escape(t('Cómo funciona el ataque'))}</title><desc>${escape(t(visual.description))}</desc>${content}</svg>`;
@@ -216,5 +220,5 @@ function exampleCode(code) {
 export function attackSectionHTML(family, year, id, t = text => text) {
   const visual = getVisual(family, year, id);
   if (!visual) return '';
-  return `<section class="detail-section attack-section visual-${visual.accent}"><h2>${escape(t('Cómo funciona el ataque'))}</h2><div class="attack-explainer"><div class="attack-flow">${diagramSVG(family, year, id, t)}<p class="attack-description">${escape(t(visual.description))}</p></div><div class="attack-example"><h3>${escape(t('Ejemplo concreto'))} <span>${escape(t('Vulnerable'))}</span></h3><pre><code>${exampleCode(visual.example)}</code></pre><p class="attack-fix"><strong>${escape(t('Corrección:'))}</strong> ${escape(t(visual.fix))}</p></div></div></section>`;
+  return `<section id="detail-attack" class="detail-section attack-section visual-${visual.accent}"><h2>${escape(t('Cómo funciona el ataque'))}</h2><div class="attack-explainer"><div class="attack-flow">${diagramSVG(family, year, id, t)}<p class="attack-description">${escape(t(visual.description))}</p></div><div id="detail-example" class="attack-example"><h3>${escape(t('Ejemplo concreto'))} <span>${escape(t('Vulnerable'))}</span></h3><pre><code>${exampleCode(visual.example)}</code></pre><p class="attack-fix"><strong>${escape(t('Corrección:'))}</strong> ${escape(t(visual.fix))}</p></div></div></section>`;
 }

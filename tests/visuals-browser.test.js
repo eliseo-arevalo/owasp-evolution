@@ -18,7 +18,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
   const fits = async (page, context) => {
     await page.evaluate(() => document.fonts.ready);
     const metrics = await page.locator('#detail-modal').evaluate(panel => {
-      const svg = panel.querySelector('.attack-diagram');
+      const svg = panel.querySelector('#detail-page .attack-diagram');
       const body = panel.querySelector('.detail-body');
       const code = panel.querySelector('pre');
       return { overflow: document.documentElement.scrollWidth - innerWidth,
@@ -50,7 +50,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
     for (const item of pilot) {
       await page.goto(route(item.id));
       await page.locator('#detail-modal[open] .attack-diagram').waitFor();
-      const motion = await page.locator('#detail-modal .attack-diagram').evaluate(async svg => {
+      const motion = await page.locator('#detail-page .attack-diagram').evaluate(async svg => {
         const initial = svg.getBoundingClientRect().toJSON();
         const timings = svg.getAnimations({ subtree: true }).map(animation => animation.effect.getComputedTiming());
         const frames = [];
@@ -78,14 +78,14 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
       for (const language of ['en', 'es']) {
         await page.locator(`[data-language="${language}"]`).click();
         const t = text => translate(text, language);
-        assert.equal(await page.locator('#detail-modal .attack-diagram title').textContent(), `${item.id} · ${t('Cómo funciona el ataque')}`);
-        assert.equal(await page.locator('#detail-modal .attack-diagram desc').textContent(), t(getVisual('web', 2025, item.id).description));
-        assert.equal(await page.locator('#detail-modal .attack-diagram').getAttribute('role'), 'img');
-        assert.equal(await page.locator('#detail-modal .attack-diagram').getAttribute('data-layout'), getVisual('web', 2025, item.id).layout);
-        assert.equal(await page.locator('#detail-modal .detail-icon svg title').textContent(), item.name);
-        assert.equal(await page.locator('#detail-modal pre code').textContent(), unmark(getVisual('web', 2025, item.id).example));
-        assert.equal(await page.locator('#detail-modal .attack-fix').textContent(), `${t('Corrección:')} ${t(getVisual('web', 2025, item.id).fix)}`);
-        assert.equal(await page.locator('#detail-modal .source-link').getAttribute('href'), item.source);
+        assert.equal(await page.locator('#detail-page .attack-diagram title').textContent(), `${item.id} · ${t('Cómo funciona el ataque')}`);
+        assert.equal(await page.locator('#detail-page .attack-diagram desc').textContent(), t(getVisual('web', 2025, item.id).description));
+        assert.equal(await page.locator('#detail-page .attack-diagram').getAttribute('role'), 'img');
+        assert.equal(await page.locator('#detail-page .attack-diagram').getAttribute('data-layout'), getVisual('web', 2025, item.id).layout);
+        assert.equal(await page.locator('#detail-page .detail-icon svg title').textContent(), item.name);
+        assert.equal(await page.locator('#detail-page pre code').textContent(), unmark(getVisual('web', 2025, item.id).example));
+        assert.equal(await page.locator('#detail-page .attack-fix').textContent(), `${t('Corrección:')} ${t(getVisual('web', 2025, item.id).fix)}`);
+        assert.equal(await page.locator('#detail-page .source-link').getAttribute('href'), item.source);
         await page.evaluate(() => document.fonts.ready);
         await fits(page, `${item.id} ${language}`);
       }
@@ -110,10 +110,10 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
     // Reopen replays the animation, and reduced motion paints instantly.
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     await page.locator('.risk-detail').click();
-    assert.ok(await page.locator('#detail-modal .attack-diagram').evaluate(svg => svg.getAnimations({ subtree: true }).length > 0));
+    assert.ok(await page.locator('#detail-page .attack-diagram').evaluate(svg => svg.getAnimations({ subtree: true }).length > 0));
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(route('A01'));
-    assert.equal(await page.locator('#detail-modal .attack-diagram').evaluate(svg => svg.getAnimations({ subtree: true }).length), 0);
+    assert.equal(await page.locator('#detail-page .attack-diagram').evaluate(svg => svg.getAnimations({ subtree: true }).length), 0);
     await page.close();
 
     // Exercise both side docks at 360/480px and the wide bottom layout.
@@ -122,7 +122,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
       await dock.addInitScript(({ side, width }) => localStorage.setItem('owasp-dock-layout', JSON.stringify({ desktop: { side, width, height: 620 } })), { side, width });
       for (const item of pilot) {
         await dock.goto(route(item.id, 'es'));
-        await dock.locator('#detail-modal .attack-diagram').waitFor();
+        await dock.locator('#detail-page .attack-diagram').waitFor();
         await fits(dock, `${theme} ${side} ${width} ${item.id}`);
       }
       if (side === 'bottom') assert.equal(await dock.locator('.attack-explainer').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 2);

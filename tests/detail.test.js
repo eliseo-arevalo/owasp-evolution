@@ -25,7 +25,8 @@ test('detail retains every official lineage title, including isolated categories
   const detailPage = node('article');
   const context = { node, catalog, iconSVG, attackSectionHTML,
     visualNode: (markup, className) => markup ? node('div', className, markup) : null, getEdition, relationshipLabel, relationKind, rowCues,
-    t: (text) => text, dockControl: () => node('label', 'dock-control'), returnToMatrix() {}, elements: { detailPage },
+    fullscreen: false, actionButton: () => node('button', 'detail-action'), toggleFullscreen() {},
+    sectionNav: () => node('nav', 'detail-section-nav'), t: (text) => text, dockControl: () => node('label', 'dock-control'), returnToMatrix() {}, elements: { detailPage },
     document: { createTextNode: (text) => node('text', '', text) },
     yearFilters: new Map(),
   };

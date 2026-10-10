@@ -1,3 +1,5 @@
+import { uiIcon } from './icons.js';
+import { shortcutRows, shortcutCommand } from './shortcuts.js';
 import { iconSVG, attackSectionHTML } from './visuals.js';
 import { pathFor, routeFrom, languageOf } from './routes.js';
 import { menuButton } from './menu.js';
@@ -59,6 +61,9 @@ let hoverKey = null;
 let focusKey = null;
 let matrixReturnHash = null;
 let wasDetail = false;
+let detailSignature = '';
+let fullscreen = false;
+let fullscreenReturn = null;
 let pendingReveal = false;
 let settling = [];
 let layoutFrame = 0;
@@ -118,11 +123,13 @@ function visualNode(markup, className) {
 }
 
 function navigate(route) {
+  if (currentRoute.detail && route.detail === undefined) route = { ...route, detail: true };
   history.pushState({ route }, '', pathFor(route, catalog, language));
   render();
 }
 
 function openDetail() {
+  if (currentRoute.detail) return;
   matrixReturnHash = pathFor({ family: currentRoute.family }, catalog, language);
   history.pushState({ matrixReturnHash }, '', pathFor(currentRoute, catalog, language));
   render();
@@ -154,7 +161,7 @@ function renderFamilyNav() {
     button.addEventListener('click', () => {
       const editions = visibleEditions(family, yearFilters.get(family.id));
       const edition = editions.find((item) => item.year === family.defaultYear) ?? editions.at(-1);
-      navigate({ family: family.id, year: edition.year, id: edition.items[0].id });
+      navigate({ family: family.id, year: edition.year, id: edition.items[0].id, detail: false });
       elements.search.value = '';
       hideSearchResults();
     });
@@ -247,7 +254,7 @@ function renderTimeline(family, ease = false) {
       card.dataset.key = risk.key;
       const label = `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`;
       button.setAttribute('aria-label', [label, ...cueDescriptions(cue)].join(', '));
-      button.title = [risk.name, `${risk.id} · ${risk.year}`, risk.change].filter(Boolean).join('\n');
+      button.title = [risk.name, `${risk.id} · ${risk.year}`, risk.change, t('Enter: abrir detalle · ↑↓: navegar')].filter(Boolean).join('\n');
 
       const rank = node('span', 'risk-rank', String(risk.rank).padStart(2, '0'));
       const icon = iconSVG(family.id, edition.year, risk.id, '', 'risk-icon matrix-icon');
@@ -562,6 +569,80 @@ function renderEditionFilter(family) {
   }
 }
 
+function actionButton(action, icon, label, hint, handler) {
+  const button = node('button', 'detail-action');
+  button.type = 'button';
+  button.dataset.action = action;
+  button.setAttribute('aria-label', t(label));
+  button.title = `${t(label)}${hint ? ` (${hint})` : ''}`;
+  if (['fullscreen', 'close'].includes(action)) button.setAttribute('aria-keyshortcuts', action === 'fullscreen' ? 'F' : 'Escape');
+  button.insertAdjacentHTML('beforeend', uiIcon(icon));
+  const tooltip = node('span', 'detail-tooltip');
+  tooltip.id = `tooltip-${action}`;
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.append(node('span', '', t(label)));
+  if (hint) tooltip.append(node('kbd', '', hint));
+  button.append(tooltip);
+  button.setAttribute('aria-describedby', tooltip.id);
+  button.addEventListener('click', handler);
+  return button;
+}
+
+function moveSelection(key) {
+  const card = cardByKey(currentRoute.detail ? selectedKey : focusKey || selectedKey);
+  const target = card && rowTarget(card, key);
+  if (!target?.classList.contains('risk-card')) return;
+  const year = yearOf(target.dataset.key), id = idOf(target.dataset.key);
+  navigate({ family: currentRoute.family, year, id });
+  if (!currentRoute.detail) target.querySelector('.risk-focus').focus({ preventScroll: true });
+}
+
+function setDock(position) {
+  if (!currentRoute.detail || narrowScreen.matches) return;
+  if (fullscreen) toggleFullscreen();
+  dockPosition = position;
+  dockPreferences.desktop.side = position;
+  saveDock(); updateDock();
+}
+
+function toggleFullscreen() {
+  if (!currentRoute.detail) return;
+  const panel = elements.detailModal;
+  if (!fullscreen) {
+    fullscreenReturn = document.activeElement;
+    panel.close();
+    fullscreen = true;
+    panel.classList.add('is-fullscreen');
+    panel.showModal();
+  } else {
+    panel.close();
+    fullscreen = false;
+    panel.classList.remove('is-fullscreen');
+    panel.show();
+  }
+  const button = elements.detailPage.querySelector('[data-action="fullscreen"]');
+  button.setAttribute('aria-label', t(fullscreen ? 'Volver al panel' : 'Abrir en pantalla completa'));
+  button.title = `${button.getAttribute('aria-label')} (F)`;
+  button.querySelector('svg').outerHTML = uiIcon(fullscreen ? 'arrows-in' : 'arrows-out');
+  button.querySelector('.detail-tooltip > span').textContent = button.getAttribute('aria-label');
+  scheduleFocus(() => fullscreen ? button : (fullscreenReturn?.isConnected ? fullscreenReturn : button));
+}
+
+function sectionNav(hasAttack) {
+  const nav = node('nav', 'detail-section-nav');
+  nav.setAttribute('aria-label', t('Secciones del detalle'));
+  for (const [id, label] of [['overview', 'Resumen'], ...(hasAttack ? [['attack', 'Ataque'], ['example', 'Ejemplo']] : []), ['prevention', 'Prevención'], ['lineage', 'Linaje'], ['sources', 'Fuentes']]) {
+    const link = node('a', '', t(label));
+    link.href = `#detail-${id}`;
+    link.addEventListener('click', event => {
+      event.preventDefault();
+      elements.detailPage.querySelector(`#detail-${id}`)?.scrollIntoView({ behavior: reducedMotion() ? 'instant' : 'smooth', block: 'start' });
+    });
+    nav.append(link);
+  }
+  return nav;
+}
+
 function renderDetail(family, risk, lineage) {
   elements.detailPage.replaceChildren();
   const edition = getEdition(catalog, family.id, risk.year);
@@ -570,11 +651,28 @@ function renderDetail(family, risk, lineage) {
   const code = node('div', 'detail-code');
   code.append(node('span', '', `${risk.id} · ${risk.year}`));
   code.append(node('span', 'detail-current', edition.status));
-  const close = node('button', 'detail-back', t('← Volver'));
-  close.type = 'button';
-  close.setAttribute('aria-label', t('Volver a la matriz'));
+  const close = actionButton('close', 'x', 'Cerrar detalle', 'Esc', () => {});
+  close.classList.add('detail-back');
   close.addEventListener('click', returnToMatrix);
-  top.append(code, dockControl(), close);
+  const toolbar = node('div', 'detail-actions');
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', t('Acciones del detalle'));
+  const previous = actionButton('previous', 'arrow-left', 'Elemento anterior', 'K / ↑', () => moveSelection('ArrowUp'));
+  const next = actionButton('next', 'arrow-right', 'Elemento siguiente', 'J / ↓', () => moveSelection('ArrowDown'));
+  previous.disabled = risk.rank === 1;
+  next.disabled = risk.rank === edition.items.length;
+  const full = actionButton('fullscreen', fullscreen ? 'arrows-in' : 'arrows-out', fullscreen ? 'Volver al panel' : 'Abrir en pantalla completa', 'F', toggleFullscreen);
+  const copy = actionButton('copy', 'link', 'Copiar enlace', '', async () => {
+    try { await navigator.clipboard.writeText(location.href); detailStatus.textContent = t('Enlace copiado'); }
+    catch { detailStatus.textContent = t('No se pudo copiar el enlace'); }
+  });
+  const markdown = actionButton('markdown', 'download-simple', 'Exportar este elemento en Markdown', '', () => {
+    download(new Blob([exportMarkdown(family, risk.year, risk, language)], { type: 'text/markdown;charset=utf-8' }), `owasp-${family.id}-${risk.year}-${risk.id}.md`);
+  });
+  toolbar.append(previous, next, dockControl(), full, copy, markdown, close);
+  const detailStatus = node('span', 'sr-only');
+  detailStatus.setAttribute('role', 'status');
+  top.append(code, toolbar, detailStatus);
 
   const heading = node('h1', '', risk.name);
   heading.id = 'detail-title';
@@ -583,15 +681,18 @@ function renderDetail(family, risk, lineage) {
   if (icon) title.append(icon);
   title.append(heading);
   const attack = visualNode(attackSectionHTML(family.id, risk.year, risk.id, t), 'detail-attack');
-  const summary = node('p', 'detail-summary', risk.summary);
+  const summary = node('p', 'detail-summary', risk.summary.split('. ')[0]);
+  summary.title = risk.summary;
 
   const prevention = node('section', 'detail-section');
+  prevention.id = 'detail-prevention';
   prevention.append(node('h2', '', t('Prevención prioritaria')));
   const preventionList = node('ul');
   for (const item of risk.prevention) preventionList.append(node('li', '', item));
   prevention.append(preventionList);
 
   const history = node('section', 'detail-section');
+  history.id = 'detail-lineage';
   history.append(node('h2', '', t('Linaje en el tiempo')));
   const historyList = node('ol', 'lineage-list');
   const visibleYears = yearFilters.get(family.id);
@@ -640,17 +741,40 @@ function renderDetail(family, risk, lineage) {
   relations.append(relationList);
 
   const linkSection = node('section', 'detail-section');
+  linkSection.id = 'detail-sources';
+  linkSection.append(node('h2', '', t('Fuentes')));
   const source = node('a', 'source-link', t('Abrir fuente oficial ↗'));
   source.href = risk.source;
   source.target = '_blank';
   source.rel = 'noopener noreferrer';
-  linkSection.append(source);
+  const sources = node('ul', 'detail-sources');
+  const official = node('li'); official.append(source); sources.append(official);
+  const cwes = risk.cwes || risk.cwe || [];
+  for (const cwe of Array.isArray(cwes) ? cwes : [cwes]) {
+    const number = String(cwe).replace(/^CWE-/, '');
+    if (!/^\d+$/.test(number)) continue;
+    const link = node('a', '', `CWE-${number}`);
+    link.href = `https://cwe.mitre.org/data/definitions/${number}.html`;
+    link.target = '_blank'; link.rel = 'noopener noreferrer';
+    const entry = node('li'); entry.append(link); sources.append(entry);
+  }
+  linkSection.append(sources);
 
   const header = node('header', 'detail-header');
   header.append(top, title, summary);
   const body = node('div', 'detail-body');
-  if (attack) body.append(attack);
-  body.append(prevention, history, relations, linkSection);
+  body.append(sectionNav(Boolean(attack)));
+  const grid = node('div', 'detail-grid');
+  const left = node('div', 'detail-primary');
+  const overview = node('section', 'detail-section detail-overview');
+  overview.id = 'detail-overview';
+  overview.append(node('h2', '', t('Resumen')), node('p', '', risk.summary));
+  left.append(overview);
+  if (attack) left.append(attack);
+  const right = node('div', 'detail-secondary');
+  right.append(prevention, history, relations, linkSection);
+  grid.append(left, right);
+  body.append(grid);
   elements.detailPage.append(header, body);
 
 }
@@ -728,6 +852,7 @@ function drawConnections() {
       });
       hit.addEventListener('dblclick', () => {
         // Resolve the clicked endpoint even if hashchange has not rendered yet.
+        if (currentRoute.detail) return;
         currentRoute = { family: currentRoute.family, year: yearOf(edge.to), id: idOf(edge.to) };
         openDetail();
       });
@@ -791,19 +916,15 @@ function dockControl() {
   group.id = 'dock-select';
   group.setAttribute('role', 'group');
   group.setAttribute('aria-label', language === 'es' ? 'Posición del panel' : 'Panel position');
-  for (const [value, es, en, icon] of [['left', 'Izquierda', 'Left', '◧'], ['right', 'Derecha', 'Right', '◨'], ['bottom', 'Abajo', 'Bottom', '⬒']]) {
+  for (const [index, [value, es, en, icon]] of [['left', 'Izquierda', 'Left', 'sidebar-simple'], ['right', 'Derecha', 'Right', 'sidebar-simple'], ['bottom', 'Abajo', 'Bottom', 'layout']].entries()) {
     const button = node('button');
     button.type = 'button';
     button.dataset.dock = value;
     button.setAttribute('aria-label', language === 'es' ? es : en);
-    button.title = language === 'es' ? es : en;
-    const glyph = node('span', '', icon);
-    glyph.setAttribute('aria-hidden', 'true');
-    button.append(glyph);
+    button.title = `${language === 'es' ? es : en} (${index + 1})`;
+    button.insertAdjacentHTML('beforeend', uiIcon(icon));
     button.addEventListener('click', () => {
-      dockPosition = value;
-      dockPreferences.desktop.side = value;
-      saveDock(); updateDock();
+      setDock(value);
     });
     group.append(button);
   }
@@ -933,7 +1054,7 @@ resizer.addEventListener('keydown', (event) => {
 // Delegation survives detail content updates. Interactive header controls keep their behavior.
 elements.detailModal.addEventListener('pointerdown', event => {
   const header = event.target.closest('.detail-header');
-  if (!header || narrowScreen.matches || event.button !== 0 || event.target.closest('button, select, a, input')) return;
+  if (!header || fullscreen || narrowScreen.matches || event.button !== 0 || event.target.closest('button, select, a, input')) return;
   event.preventDefault();
   header.setPointerCapture(event.pointerId);
   const x = event.clientX, y = event.clientY;
@@ -1032,6 +1153,8 @@ function render() {
   applyStaticLanguage(language);
   for (const button of document.querySelectorAll('[data-language]')) button.setAttribute('aria-pressed', String(button.dataset.language === language));
   syncThemeLabel();
+  elements.search.title = `${t('Buscar categorías')} (/ · Ctrl/⌘+K)`;
+  elements.search.setAttribute('aria-keyshortcuts', '/ Control+K Meta+K');
   const detail = Boolean(currentRoute.detail);
   document.body.classList.toggle('detail-open', detail);
   const structure = JSON.stringify([family.id, language, [...yearFilters.get(family.id)]]);
@@ -1052,7 +1175,26 @@ function render() {
     crossfadeFamily(snapshot);
   }
   if (detail) {
-    renderDetail(family, selected, lineage);
+    const nextDetail = JSON.stringify([family.id, selected.key, language]);
+    if (nextDetail !== detailSignature || !wasDetail) {
+      const activeInside = elements.detailPage.contains(document.activeElement);
+      const activeAction = activeInside ? document.activeElement?.dataset.action : null;
+      const snapshot = wasDetail && !reducedMotion() ? elements.detailPage.cloneNode(true) : null;
+      renderDetail(family, selected, lineage);
+      detailSignature = nextDetail;
+      elements.detailPage.querySelector('.detail-body').scrollTop = 0;
+      if (snapshot) {
+        snapshot.removeAttribute('id');
+        snapshot.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+        snapshot.classList.add('detail-crossfade');
+        snapshot.inert = true; snapshot.setAttribute('aria-hidden', 'true');
+        elements.detailModal.append(snapshot);
+        snapshot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: EASE }).finished.finally(() => snapshot.remove());
+        elements.detailPage.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: EASE });
+      }
+      if (activeInside) scheduleFocus(() => elements.detailPage.querySelector(`[data-action="${activeAction}"]`), () => elements.detailPage.querySelector(fullscreen ? '[data-action="fullscreen"]' : '.detail-back'));
+      if (wasDetail) updateDock();
+    }
     if (!wasDetail) {
       keepModal();
       if (!elements.detailModal.open) elements.detailModal.show();
@@ -1064,6 +1206,10 @@ function render() {
       scheduleFocus(() => elements.detailPage.querySelector('.detail-back'));
     }
   } else if (wasDetail) {
+    if (fullscreen) {
+      fullscreen = false;
+      elements.detailModal.classList.remove('is-fullscreen');
+    }
     dismissModal(() => {
       scheduleFocus(resolveDetailReturn);
       scheduleConnections();
@@ -1076,37 +1222,92 @@ function render() {
 
 elements.detailModal.addEventListener('cancel', (event) => {
   event.preventDefault();
-  returnToMatrix();
+  if (fullscreen) toggleFullscreen();
+  else returnToMatrix();
 });
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.search-wrap')) hideSearchResults();
 });
-document.addEventListener('keydown', (event) => {
-  const tag = document.activeElement?.tagName;
-  if (event.key === '/' && !currentRoute.detail && tag !== 'INPUT' && tag !== 'TEXTAREA') {
-    event.preventDefault();
-    elements.search.focus();
+// Native modal dialogs provide background isolation; Tab wrapping is explicit too.
+function trapFocus(event, dialog) {
+  if (event.key !== 'Tab') return;
+  const controls = [...dialog.querySelectorAll('button, a[href], input, [tabindex="0"]')].filter(el => !el.disabled && !el.closest('[hidden], [inert]') && el.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+    event.preventDefault(); last?.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+    event.preventDefault(); first?.focus();
   }
-  if (event.key === 'Escape') {
-    if (currentRoute.detail) {
-      event.preventDefault();
-      returnToMatrix();
-      return;
-    }
-    elements.search.value = '';
-    hideSearchResults();
-    elements.search.blur();
+}
+const shortcutsDialog = node('dialog', 'shortcuts-dialog');
+shortcutsDialog.id = 'shortcuts-dialog';
+shortcutsDialog.setAttribute('aria-labelledby', 'shortcuts-title');
+document.body.append(shortcutsDialog);
+let helpReturn = null;
+function showShortcuts() {
+  helpReturn = document.activeElement;
+  shortcutsDialog.replaceChildren();
+  const title = node('h2', '', 'Atajos de teclado / Keyboard shortcuts');
+  title.id = 'shortcuts-title';
+  const close = actionButton('close-help', 'x', 'Cerrar ayuda', 'Esc', closeShortcuts);
+  const top = node('div', 'shortcuts-top'); top.append(title, close);
+  const list = node('dl', 'shortcuts-list');
+  for (const [keys, es, en] of shortcutRows) {
+    const key = node('dt'); key.append(node('kbd', '', keys));
+    const description = node('dd');
+    const spanish = node('span', '', es); spanish.lang = 'es';
+    const english = node('span', '', en); english.lang = 'en';
+    description.append(spanish, english);
+    list.append(key, description);
   }
+  shortcutsDialog.append(top, list, node('p', 'shortcuts-note', 'Los atajos se desactivan al escribir. / Shortcuts pause while typing.'));
+  shortcutsDialog.showModal(); close.focus();
+}
+function closeShortcuts() {
+  shortcutsDialog.close();
+  scheduleFocus(() => helpReturn);
+}
+shortcutsDialog.addEventListener('cancel', event => { event.preventDefault(); closeShortcuts(); });
+shortcutsDialog.addEventListener('click', event => { if (event.target === shortcutsDialog) {
+  const box = shortcutsDialog.getBoundingClientRect();
+  if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) closeShortcuts();
+} });
+elements.detailModal.addEventListener('click', event => {
+  if (!fullscreen || event.target !== elements.detailModal) return;
+  const box = elements.detailModal.getBoundingClientRect();
+  if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) toggleFullscreen();
 });
-elements.timelineGrid.addEventListener('keydown', (event) => {
-  const card = event.target.closest('.risk-focus')?.closest('.risk-card');
-  if (!card || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-  const target = rowTarget(card, event.key);
-  if (!target) return;
+document.addEventListener('keydown', (event) => {
+  if (shortcutsDialog.open) { trapFocus(event, shortcutsDialog); return; }
+  if (fullscreen) trapFocus(event, elements.detailModal);
+  if (event.defaultPrevented || event.isComposing || event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) return;
+  const command = shortcutCommand(event);
+  if (!command) return;
+  if (command === 'search') { event.preventDefault(); if (fullscreen) toggleFullscreen(); elements.search.focus(); scheduleFocus(() => elements.search); return; }
+  if (command === 'help') { event.preventDefault(); showShortcuts(); return; }
+  if (command === 'escape') {
+    event.preventDefault();
+    if (fullscreen) toggleFullscreen();
+    else if (currentRoute.detail) returnToMatrix();
+    else { elements.search.value = ''; hideSearchResults(); elements.search.blur(); }
+    return;
+  }
+  if (command === 'fullscreen') { if (currentRoute.detail) { event.preventDefault(); toggleFullscreen(); } return; }
+  if (command.startsWith('dock:')) { if (currentRoute.detail) { event.preventDefault(); setDock(command.split(':')[1]); } return; }
+  const card = event.target.closest('.risk-card');
+  if (command === 'open') {
+    // Other focused buttons retain their native Enter behavior.
+    if (!card) return;
+    event.preventDefault();
+    navigate({ family: currentRoute.family, year: yearOf(card.dataset.key), id: idOf(card.dataset.key), detail: true });
+    return;
+  }
+  if (event.target.closest('button, a, [role="menu"]') && !card && !currentRoute.detail) return;
+  if (!command.startsWith('move:')) return;
   event.preventDefault();
-  target.querySelector('.risk-focus').focus();
+  moveSelection(command.split(':')[1]);
 });
 // Hover and focus preview a row's lineage without touching the selection or the URL.
 // Leaving a row, even into a gap or header, returns to the committed selection.

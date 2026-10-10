@@ -71,7 +71,7 @@ test('every pilot category prerenders accessible SVG and explanatory text before
     const html = files.get(pathFor({ family: 'web', year: 2025, id }, catalog, language).slice(1) + 'index.html');
     const article = html.match(/<article id="prerender">([^]*?)<\/article>/)[1];
     const t = text => translate(text, language);
-    assert.equal((article.match(/<svg /g) || []).length, 2);
+    assert.equal((article.match(/role="img"/g) || []).length, 2);
     assert.ok(article.includes(`<desc>${t(getVisual('web', 2025, id).description)}</desc>`));
     assert.ok(article.indexOf(t('Cómo funciona el ataque')) < article.indexOf(t('Prevención prioritaria')));
     assert.match(article, /<p class="attack-description">/);
@@ -100,7 +100,7 @@ test('build compaction preserves every localized SVG byte for byte', async () =>
   const { readFile } = await import('node:fs/promises');
   const { compactJavaScript } = await import('../scripts/compact.js');
   const source = await readFile(new URL('../src/visuals.js', import.meta.url), 'utf8');
-  const built = await import(`data:text/javascript;base64,${Buffer.from(compactJavaScript(source)).toString('base64')}`);
+  const built = await import(`data:text/javascript;base64,${Buffer.from(compactJavaScript(source.replace('./icons.js', new URL('../src/icons.js', import.meta.url).href))).toString('base64')}`);
   for (const language of ['en', 'es']) for (const { id, name } of pilot) {
     const t = text => translate(text, language);
     assert.equal(built.iconSVG('web', 2025, id, name), iconSVG('web', 2025, id, name));

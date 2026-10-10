@@ -62,7 +62,8 @@ test('family crossfade preserves chrome geometry and paints every frame in ES/EN
       await page.keyboard.press('ArrowDown');
       await page.keyboard.press('Enter');
       await page.waitForTimeout(100);
-      assert.ok(await page.locator('.is-selected .risk-focus').evaluate((button) => button === document.activeElement));
+      assert.ok(await page.locator('#detail-modal').evaluate((dialog) => dialog.open && dialog.contains(document.activeElement)));
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
       await page.locator('.is-selected .risk-focus').dblclick({ force: true });
       await page.waitForTimeout(100);
       assert.ok(await page.locator('#detail-modal').evaluate((dialog) => dialog.open));

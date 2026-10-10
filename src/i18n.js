@@ -1,6 +1,28 @@
 import { english } from './translations-en.js';
 
 const ui = {
+  "Atacante": "Attacker",
+  "/admin público": "Public /admin",
+  "Resumen": "Overview",
+  "Ataque": "Attack",
+  "Ejemplo": "Example",
+  "Prevención": "Prevention",
+  "Linaje": "Lineage",
+  "Fuentes": "Sources",
+  "Secciones del detalle": "Detail sections",
+  "Acciones del detalle": "Detail actions",
+  "Cerrar detalle": "Close detail",
+  "Cerrar ayuda": "Close help",
+  "Elemento anterior": "Previous item",
+  "Elemento siguiente": "Next item",
+  "Abrir en pantalla completa": "Open full screen",
+  "Volver al panel": "Return to panel",
+  "Copiar enlace": "Copy link",
+  "Exportar este elemento en Markdown": "Export this item as Markdown",
+  "Enlace copiado": "Link copied",
+  "No se pudo copiar el enlace": "Could not copy link",
+  "Enter: abrir detalle · ↑↓: navegar": "Enter: open detail · ↑↓: navigate",
+
   'Build + artefacto': 'Build + artifact',
   'Argon2id + sal': 'Argon2id + salt',
   "Ejemplo concreto": "Concrete example",

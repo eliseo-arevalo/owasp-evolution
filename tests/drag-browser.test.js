@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 
 test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.MOTION_PLAYWRIGHT }, async () => {
   const { chromium } = await import(process.env.MOTION_PLAYWRIGHT);
-  const server = spawn('python3', ['-m', 'http.server', '4186', '-d', 'dist'], { stdio: 'ignore' });
+  const server = spawn('python3', ['-m', 'http.server', '4187', '-d', 'dist'], { stdio: 'ignore' });
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   const measure = async (page) => page.evaluate(async () => {
     // Sample the painted frame after ResizeObserver; measuring mid-frame would
@@ -37,7 +37,7 @@ test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.M
 
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await page.goto('http://localhost:4186/#/web/2025/A01');
+    await page.goto('http://localhost:4187/#/web/2025/A01');
     await page.waitForTimeout(1000);
     await page.locator('.risk-detail').click(); await page.waitForTimeout(350);
     assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'), 'left');
@@ -75,7 +75,7 @@ test('Chrome: pointer dock drag, mobile snaps and close', { skip: !process.env.M
     await page.close();
     const mobile = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     await mobile.addInitScript(()=>localStorage.setItem('owasp-dock','right'));
-    await mobile.goto('http://localhost:4186/#/web/2025/A01'); await mobile.waitForTimeout(1000);
+    await mobile.goto('http://localhost:4187/#/web/2025/A01'); await mobile.waitForTimeout(1000);
     await mobile.locator('.risk-detail').click(); await mobile.waitForTimeout(400);
     assert.equal(await mobile.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
     assert.equal(await mobile.locator('#dock-select').isVisible(),false);
