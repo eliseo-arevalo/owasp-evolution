@@ -62,8 +62,8 @@ test('root previews are English, aliases share canonical HTML, and discovery use
  for(const {pathname} of [...files.get('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>new URL(m[1]))) {
   const html=files.get(pathname.slice(1)+'index.html');
   const lang=languageOf(pathname);
-  assert.ok(html.includes(`data-language="${lang}" aria-pressed="true"`));
-  assert.ok(html.includes(`data-language="${lang==='en'?'es':'en'}" aria-pressed="false"`));
+  assert.ok(html.includes(`data-language="${lang}" aria-checked="true"`));
+  assert.ok(html.includes(`data-language="${lang==='en'?'es':'en'}" aria-checked="false"`));
   assert.ok(html.includes(`class="brand" href="${lang==='es'?'/es/':'/'}"`));
   if(lang==='en') assert.equal(files.get('en/'+pathname.slice(1)+'index.html'),html);
   const route=pathname==='/' || pathname==='/es/' ? null : /\/\d{4}\//.test(pathname) ? routeFrom(pathname,catalog) : {family:routeFrom(pathname,catalog).family};

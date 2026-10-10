@@ -69,6 +69,7 @@ let fullscreenReturn = null;
 let detailMenu = null;
 let sectionObserver = null;
 let stopSectionTracking = null;
+let lineageTitleObserver = null;
 let feedbackTimer = null;
 const tooltips = sharedTooltip(document);
 let pendingReveal = false;
@@ -152,6 +153,7 @@ function returnToMatrix() {
 }
 
 function renderFamilyNav() {
+  elements.familyNav.dataset.segment = currentRoute.family === 'llm' ? '1' : '0';
   if (elements.familyNav.childElementCount) {
     [...elements.familyNav.children].forEach((button) => {
       button.textContent = button.dataset.family === 'web' ? 'Web' : 'GenAI/LLM';
@@ -207,6 +209,11 @@ function renderTimeline(family, ease = false) {
   const before = ease && !reducedMotion() ? columnBoxes() : null;
   cancelAnimationFrame(layoutFrame);
   layoutEasing = false;
+  elements.timelineGrid.style.height = '';
+  for (const column of elements.timelineGrid.children) {
+    column.style.width = '';
+    column.style.removeProperty('--risk-row-height');
+  }
   stopReveal();
   stopSettle();
   const existing = ease ? new Map([...elements.timelineGrid.children].map((column) => [Number(column.dataset.year), column])) : new Map();
@@ -226,6 +233,7 @@ function renderTimeline(family, ease = false) {
   elements.timelineStage.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.style.setProperty('--edition-count', editions.length);
   elements.timelineGrid.dataset.editions = String(editions.length);
+  elements.timelineStage.dataset.editions = String(editions.length);
   hoverKey = null;
   focusKey = null;
 
@@ -267,7 +275,7 @@ function renderTimeline(family, ease = false) {
       const icon = iconSVG(family.id, edition.year, risk.id, '', 'risk-icon matrix-icon');
       if (icon) button.classList.add('has-icon');
       const copy = node('span', 'risk-copy');
-      copy.append(node('span', 'risk-name', risk.name));
+      copy.append(node('span', 'risk-name', risk.name), node('span', 'risk-summary', risk.summary));
       button.append(rank);
       if (icon) button.insertAdjacentHTML('beforeend', icon);
       button.append(copy);
@@ -348,7 +356,7 @@ function columnBoxes() {
   const stage = elements.timelineStage.parentElement.getBoundingClientRect();
   return new Map([...elements.timelineGrid.children].map((column) => {
     const box = column.getBoundingClientRect();
-    return [Number(column.dataset.year), { x: box.left - stage.left, y: box.top - stage.top }];
+    return [Number(column.dataset.year), { x: box.left - stage.left, y: box.top - stage.top, width: box.width, rowHeight: column.querySelector('.risk-card').getBoundingClientRect().height }];
   }));
 }
 
@@ -356,27 +364,38 @@ function columnBoxes() {
 // keeping the same SVG paths attached to the moving columns.
 function easeColumns(before) {
   const columns = [...elements.timelineGrid.children];
-  const deltas = layoutDeltas(before, columnBoxes());
-  for (const column of columns) {
-    const delta = deltas.get(Number(column.dataset.year));
-    column.style.transform = delta ? `translate(${delta.x}px, ${delta.y}px)` : '';
-    if (!before.has(Number(column.dataset.year))) column.animate(
-      [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }],
-      { duration: MOTION.layout, easing: EASE });
-  }
+  const after = columnBoxes();
+  const deltas = layoutDeltas(before, after);
+  // Hold the final stage height so its centering does not drift as rows resize.
+  elements.timelineGrid.style.height = `${elements.timelineGrid.getBoundingClientRect().height}px`;
+  const paint = remaining => {
+    for (const column of columns) {
+      const year = Number(column.dataset.year);
+      const previous = before.get(year), target = after.get(year), delta = deltas.get(year);
+      column.style.transform = delta && remaining ? `translate(${delta.x * remaining}px, ${delta.y * remaining}px)` : '';
+      if (previous && remaining) {
+        column.style.width = `${target.width + (previous.width - target.width) * remaining}px`;
+        column.style.setProperty('--risk-row-height', `${target.rowHeight + (previous.rowHeight - target.rowHeight) * remaining}px`);
+      } else {
+        column.style.width = '';
+        column.style.removeProperty('--risk-row-height');
+      }
+    }
+  };
+  paint(1);
+  for (const column of columns) if (!before.has(Number(column.dataset.year))) column.animate(
+    [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }],
+    { duration: MOTION.layout, easing: EASE });
   layoutEasing = true;
   drawConnections();
   let start;
-  const frame = (now) => {
+  const frame = now => {
     start ??= now;
-    const t = Math.min(1, (now - start) / MOTION.layout);
-    const remaining = 1 - easeOut(t);
-    for (const column of columns) {
-      const delta = deltas.get(Number(column.dataset.year));
-      column.style.transform = delta && remaining ? `translate(${delta.x * remaining}px, ${delta.y * remaining}px)` : '';
-    }
+    const progress = Math.min(1, (now - start) / MOTION.layout);
+    paint(1 - easeOut(progress));
+    if (progress === 1) elements.timelineGrid.style.height = '';
     drawConnections();
-    layoutEasing = t < 1;
+    layoutEasing = progress < 1;
     layoutFrame = layoutEasing ? requestAnimationFrame(frame) : 0;
   };
   layoutFrame = requestAnimationFrame(frame);
@@ -731,6 +750,8 @@ function toggleFullscreen() {
 function sectionNav(hasAttack) {
   const nav = node('nav', 'detail-section-nav');
   nav.setAttribute('aria-label', t('Secciones del detalle'));
+  const tabs = node('div', 'detail-tabs');
+  nav.append(tabs);
   for (const [id, label] of [['overview', 'Resumen'], ...(hasAttack ? [['attack', 'Ataque'], ['example', 'Ejemplo']] : []), ['prevention', 'Prevención'], ['lineage', 'Linaje'], ['sources', 'Fuentes']]) {
     const link = node('a', '', t(label));
     link.href = `#detail-${id}`;
@@ -738,7 +759,7 @@ function sectionNav(hasAttack) {
       event.preventDefault();
       elements.detailPage.querySelector(`#detail-${id}`)?.scrollIntoView({ behavior: reducedMotion() ? 'instant' : 'smooth', block: 'start' });
     });
-    nav.append(link);
+    tabs.append(link);
   }
   return nav;
 }
@@ -748,6 +769,14 @@ function trackSections(body) {
   const on = (element, type, handler) => element.addEventListener(type, handler, { passive: true, signal: listeners.signal });
   let requestedSection = null;
   const nav = body.querySelector('.detail-section-nav');
+  const tabs = nav.querySelector('.detail-tabs');
+  const fadeEdges = () => {
+    nav.classList.toggle('has-left-overflow', tabs.scrollLeft > 1);
+    nav.classList.toggle('has-right-overflow', tabs.scrollLeft + tabs.clientWidth < tabs.scrollWidth - 1);
+  };
+  on(tabs, 'scroll', fadeEdges);
+  const tabObserver = new ResizeObserver(fadeEdges);
+  tabObserver.observe(tabs);
   const links = [...nav.querySelectorAll('a')];
   const sections = links.map(link => body.querySelector(link.getAttribute('href')));
   const update = () => {
@@ -760,14 +789,26 @@ function trackSections(body) {
       : visible.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top)[0]
       ?? sections.filter(section => section.getBoundingClientRect().top <= edge).at(-1) ?? sections[0];
     for (const link of links) {
-      if (link.hash === `#${active.id}`) link.setAttribute('aria-current', 'location');
+      if (link.hash === `#${active.id}`) {
+        const changed = !link.hasAttribute('aria-current');
+        link.setAttribute('aria-current', 'location');
+        if (changed) {
+          const left = link.offsetLeft, right = left + link.offsetWidth;
+          if (left < tabs.scrollLeft + 12) tabs.scrollLeft = Math.max(0, left - 12);
+          else if (right > tabs.scrollLeft + tabs.clientWidth - 12) tabs.scrollLeft = right - tabs.clientWidth + 12;
+          fadeEdges();
+        }
+      }
       else link.removeAttribute('aria-current');
     }
   };
   sectionObserver = new IntersectionObserver(update, { root: body, threshold: [0, .1, .5, 1] });
   sections.forEach(section => sectionObserver.observe(section));
   // Also sample scroll positions inside a tall section and after viewport changes.
-  on(body, 'scroll', update);
+  on(body, 'scroll', () => {
+    if (body.scrollTop <= 1) requestedSection = null;
+    update();
+  });
   on(nav, 'click', event => {
     const link = event.target.closest('a');
     if (link) { requestedSection = body.querySelector(link.hash); update(); }
@@ -777,7 +818,7 @@ function trackSections(body) {
   on(body, 'touchstart', manualScroll);
   on(body, 'pointerdown', event => { if (!event.target.closest('.detail-section-nav')) manualScroll(); });
   on(body, 'keydown', event => { if (['PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) manualScroll(); });
-  stopSectionTracking = () => listeners.abort();
+  stopSectionTracking = () => { listeners.abort(); tabObserver.disconnect(); };
   requestAnimationFrame(update);
 }
 
@@ -801,7 +842,6 @@ function renderLineage(family, risk, lineage) {
       const link = node('button', 'lineage-link');
       link.type = 'button';
       link.dataset.key = item.key;
-      link.dataset.tooltip = `${item.id} · ${item.name}`;
       link.setAttribute('aria-label', `${item.year} · ${item.id} · ${item.name}`);
       if (item.selected) link.setAttribute('aria-current', 'true');
       link.append(node('span', 'lineage-id', item.id), node('span', 'lineage-title', item.name));
@@ -859,6 +899,7 @@ function renderDetail(family, risk, lineage) {
   tooltips.hide();
   detailMenu?.destroy();
   sectionObserver?.disconnect();
+  lineageTitleObserver?.disconnect();
   stopSectionTracking?.();
   clearTimeout(feedbackTimer);
   elements.detailPage.replaceChildren();
@@ -896,14 +937,14 @@ function renderDetail(family, risk, lineage) {
 
   const prevention = node('section', 'detail-section');
   prevention.id = 'detail-prevention';
-  prevention.append(node('h2', '', t('Prevención prioritaria')));
+  prevention.append(node('h2', '', t('Prevención')));
   const preventionList = node('ul');
   for (const item of risk.prevention) preventionList.append(node('li', '', item));
   prevention.append(preventionList);
 
   const history = node('section', 'detail-section');
   history.id = 'detail-lineage';
-  history.append(node('h2', '', t('Linaje en el tiempo')));
+  history.append(node('h2', '', t('Linaje')));
   const historyList = renderLineage(family, risk, lineage);
   history.append(historyList);
 
@@ -964,6 +1005,14 @@ function renderDetail(family, risk, lineage) {
   body.append(grid);
   elements.detailPage.append(header, body);
   trackSections(body);
+  lineageTitleObserver = new ResizeObserver(entries => {
+    for (const { target } of entries) {
+      const link = target.closest('.lineage-link');
+      if (target.scrollHeight > target.clientHeight + 1) link.dataset.tooltip = target.textContent;
+      else delete link.dataset.tooltip;
+    }
+  });
+  body.querySelectorAll('.lineage-title').forEach(title => lineageTitleObserver.observe(title));
 
 }
 
@@ -1315,7 +1364,12 @@ function render() {
   const lineage = getLineage(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
 
   applyStaticLanguage(language);
-  for (const button of document.querySelectorAll('[data-language]')) button.setAttribute('aria-pressed', String(button.dataset.language === language));
+  document.querySelector('#language-select').dataset.segment = language === 'en' ? '1' : '0';
+  for (const button of document.querySelectorAll('[data-language]')) {
+    const selected = button.dataset.language === language;
+    button.setAttribute('aria-checked', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  }
   syncThemeLabel();
   elements.search.title = `${t('Buscar categorías')} (/ · Ctrl/⌘+K)`;
   elements.search.setAttribute('aria-keyshortcuts', '/ Control+K Meta+K');
@@ -1515,15 +1569,23 @@ render();
 requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('booting')));
 if (entryPending) enterPage();
 
-document.querySelector('#language-select').addEventListener('click', (event) => {
-  if (!event.target.dataset.language) return;
-  language = event.target.dataset.language;
+const languageSelect = document.querySelector('#language-select');
+function switchLanguage(nextLanguage) {
+  if (nextLanguage === language) return;
+  language = nextLanguage;
   saveLanguagePreference(window, language);
   const languageRoute = /^(?:\/(?:en|es))?\/$/.test(location.pathname) ? null : /\/\d{4}\//.test(location.pathname) ? currentRoute : { family: currentRoute.family };
   history.pushState({ route: currentRoute }, '', pathFor(languageRoute, sourceCatalog, language));
   catalog = localizeCatalog(sourceCatalog, language);
   render();
   renderSearchResults(elements.search.value);
+  languageSelect.querySelector('[aria-checked="true"]').focus({ preventScroll: true });
+}
+languageSelect.addEventListener('click', () => switchLanguage(language === 'es' ? 'en' : 'es'));
+languageSelect.addEventListener('keydown', event => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  switchLanguage(event.key === 'Home' ? 'es' : event.key === 'End' ? 'en' : language === 'es' ? 'en' : 'es');
 });
 
 const themeSelect = document.querySelector('#theme-select');

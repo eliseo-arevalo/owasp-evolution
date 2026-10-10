@@ -76,13 +76,14 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
       assert.ok(motion.opacity.every(value => value === '1'));
       assert.ok(motion.dash.every(value => value === '0px'));
       for (const language of ['en', 'es']) {
-        await page.locator(`[data-language="${language}"]`).click();
+        if (await page.locator('html').getAttribute('lang') !== language) await page.locator(`[data-language="${language}"]`).click();
         const t = text => translate(text, language);
         assert.equal(await page.locator('#detail-page .attack-diagram title').textContent(), `${item.id} · ${t('Cómo funciona el ataque')}`);
         assert.equal(await page.locator('#detail-page .attack-diagram desc').textContent(), t(getVisual('web', 2025, item.id).description));
         assert.equal(await page.locator('#detail-page .attack-diagram').getAttribute('role'), 'img');
         assert.equal(await page.locator('#detail-page .attack-diagram').getAttribute('data-layout'), getVisual('web', 2025, item.id).layout);
-        assert.equal(await page.locator('#detail-page .detail-icon svg title').textContent(), item.name);
+        assert.equal(await page.locator('#detail-page .detail-icon svg').getAttribute('aria-hidden'), 'true');
+        assert.equal(await page.locator('#detail-page .detail-icon svg').getAttribute('data-icon'), getVisual('web', 2025, item.id).icon);
         assert.equal(await page.locator('#detail-page pre code').textContent(), unmark(getVisual('web', 2025, item.id).example));
         assert.equal(await page.locator('#detail-page .attack-fix').textContent(), `${t('Corrección:')} ${t(getVisual('web', 2025, item.id).fix)}`);
         assert.equal(await page.locator('#detail-page .source-link').getAttribute('href'), item.source);

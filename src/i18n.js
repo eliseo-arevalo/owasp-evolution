@@ -3,7 +3,7 @@ import { english } from './translations-en.js';
 const ui = {
   "Atacante": "Attacker",
   "/admin público": "Public /admin",
-  "Resumen": "Overview",
+  "Resumen": "Summary",
   "Ataque": "Attack",
   "Ejemplo": "Example",
   "Prevención": "Prevention",

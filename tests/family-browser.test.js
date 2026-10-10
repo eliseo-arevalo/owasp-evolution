@@ -17,7 +17,7 @@ test('family crossfade preserves chrome geometry and paints every frame in ES/EN
       await page.goto('http://localhost:4179/#/web/2025/A01');
       await page.waitForTimeout(1250);
       for (const language of ['es', 'en']) {
-        await page.locator(`[data-language="${language}"]`).click();
+        if (await page.locator('html').getAttribute('lang') !== language) await page.locator(`[data-language="${language}"]`).click();
         await page.waitForTimeout(400);
         for (const family of ['llm', 'web']) {
           const result = await page.evaluate(async (family) => {

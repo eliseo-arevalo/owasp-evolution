@@ -59,7 +59,7 @@ test('CSS motion uses only the named durations and disappears for reduced-motion
   assert.match(css, /--motion-fast:\s*120ms/);
   assert.match(css, /--motion-bar:\s*180ms/);
   assert.match(css, /--motion-modal:\s*220ms/);
-  for (const [, ms] of css.matchAll(/(\d+)ms/g)) assert.ok([0, 120, 180, 200, 220].includes(Number(ms)), `${ms}ms`);
+  for (const [, ms] of css.matchAll(/(\d+)ms/g)) assert.ok([0, 120, 160, 180, 200, 220].includes(Number(ms)), `${ms}ms`);
   assert.doesNotMatch(css, /infinite|cubic-bezier\([^)]*,\s*1\.[1-9]|scale\((?!\.96\))|scaleY\(1\.|bounce/);
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
   for (const name of ['--motion', '--motion-fast', '--motion-bar', '--motion-modal']) {

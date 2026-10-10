@@ -45,7 +45,7 @@
     <a class="brand" href="/" aria-label="OWASP Evolution, inicio">
       <span>OWASP Evolution</span>
     </a>
-    <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav"></nav>
+    <nav class="family-nav" aria-label="Familia de riesgos" id="family-nav" data-segment="0"></nav>
     </div>
     <div class="header-meta">
       <div class="search-wrap">
@@ -68,9 +68,9 @@
         </div>
       </div>
       <span id="export-status" class="sr-only" role="status"></span>
-      <div class="language-control segmented" id="language-select" role="group" aria-label="Idioma">
-        <button type="button" data-language="es" aria-pressed="true">ES</button>
-        <button type="button" data-language="en" aria-pressed="false">EN</button>
+      <div class="language-control segmented" id="language-select" data-segment="0" role="radiogroup" aria-label="Idioma">
+        <button type="button" role="radio" data-language="es" aria-checked="true" tabindex="0">ES</button>
+        <button type="button" role="radio" data-language="en" aria-checked="false" tabindex="-1">EN</button>
       </div>
       <div class="theme-control menu-control">
         <span class="sr-only" id="theme-label">Tema</span>

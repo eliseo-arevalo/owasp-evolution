@@ -11,7 +11,7 @@ test('menus, mobile names and locked detail emphasis in Chrome', { skip: !proces
       const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 }, locale: 'en-US', reducedMotion: 'reduce', hasTouch: width === 390 });
       const errors = []; page.on('pageerror', error => errors.push(error.message));
       await page.goto('http://localhost:4186/#/web/2025/A01');
-      await page.locator('[data-language="en"]').click();
+      if (await page.locator('html').getAttribute('lang') !== 'en') await page.locator('[data-language="en"]').click();
       const button = page.locator('#theme-select');
       await button.focus(); await page.keyboard.press('ArrowDown');
       assert.equal(await page.evaluate(() => document.activeElement.dataset.themeChoice), 'system');

@@ -43,7 +43,7 @@ test('every pilot has bilingual explanations and fixes with short selectable vul
       assert.ok(svg.includes(`<desc>${t(visual.description)}</desc>`));
       const section = attackSectionHTML('web', 2025, id, t);
       assert.match(section, /<pre><code>[^]*<mark>[^]+?<\/mark>[^]*<\/code><\/pre>/);
-      assert.ok(section.includes(t('Ejemplo concreto')));
+      assert.ok(section.includes(`<h2>${t('Ejemplo')}</h2>`));
       assert.ok(section.includes(t('Corrección:')));
       assert.ok(section.includes(t(visual.fix).replaceAll('"', '&quot;')));
       assert.match(source, new RegExp(`owasp.org/Top10/2025/${id}_2025-`));
@@ -73,7 +73,7 @@ test('every pilot category prerenders accessible SVG and explanatory text before
     const t = text => translate(text, language);
     assert.equal((article.match(/role="img"/g) || []).length, 2);
     assert.ok(article.includes(`<desc>${t(getVisual('web', 2025, id).description)}</desc>`));
-    assert.ok(article.indexOf(t('Cómo funciona el ataque')) < article.indexOf(t('Prevención prioritaria')));
+    assert.ok(article.indexOf(`<h2>${t('Cómo funciona el ataque')}</h2>`) < article.indexOf(`<h2>${t('Prevención')}</h2>`));
     assert.match(article, /<p class="attack-description">/);
     assert.match(article, /<pre><code>[^]*<mark>/);
     assert.ok(article.includes(t('Corrección:')));
