@@ -2,8 +2,14 @@ import { compactJavaScript } from './compact.js';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, rm, writeFile, readFile, readdir } from 'node:fs/promises';
 import { generateSeo } from './seo.js';
+import { umamiScript } from './analytics.js';
+import { resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const output = new URL('../dist/', import.meta.url);
+const analytics = umamiScript(process.env);
+const output = process.env.BUILD_OUTPUT_DIR
+  ? pathToFileURL(resolve(process.env.BUILD_OUTPUT_DIR) + sep)
+  : new URL('../dist/', import.meta.url);
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
@@ -37,10 +43,21 @@ async function rewrite(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const target = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
     if (entry.isDirectory()) await rewrite(target);
-    else if (entry.name.endsWith('.html')) await writeFile(target, (await readFile(target, 'utf8')).replaceAll('/styles.css', `/${cssName}`).replaceAll('/src/app.js', `/assets/app-${version}/app.js`).replace('</head>', `${preloads}</head>`));
+    else if (entry.name.endsWith('.html')) {
+      let html = (await readFile(target, 'utf8')).replaceAll('/styles.css', `/${cssName}`).replaceAll('/src/app.js', `/assets/app-${version}/app.js`).replace('</head>', `${preloads}</head>`);
+      if (analytics) {
+        // The minimal 404 document omits head tags. Make its implicit head explicit.
+        if (!/<head\b/i.test(html)) {
+          html = html.replace(/(<html\b[^>]*>)([\s\S]*?)(?=<(?:body|main)\b)/i, '$1<head>$2</head>');
+        }
+        if (!/<\/head>/i.test(html)) throw new Error(`Cannot inject analytics into ${target.pathname}: missing head`);
+        html = html.replace(/<\/head>/i, () => `${analytics}</head>`);
+      }
+      await writeFile(target, html);
+    }
   }
 }
 await rewrite(output);
 await rm(new URL('src/', output), { recursive: true });
 await rm(new URL('styles.css', output));
-console.log('Built static site in dist/');
+console.log(`Built static site in ${process.env.BUILD_OUTPUT_DIR || 'dist/'}`);

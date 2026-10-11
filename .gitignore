@@ -5,6 +5,7 @@ worker-dist/
 .dev.vars
 .env
 .env.*
+!.env.example
 auth.json
 *.log
 .DS_Store
