@@ -9,3 +9,5 @@ worker-dist/
 auth.json
 *.log
 .DS_Store
+
+.vercel/
