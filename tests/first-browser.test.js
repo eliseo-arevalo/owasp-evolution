@@ -55,7 +55,7 @@ test('Chrome: first visit reserves the panel, remembers close/open, and prioriti
       assert.match(await page.locator('#detail-title').textContent(), new RegExp(category.name));
       assert.deepEqual(await page.locator('.edition-column').evaluateAll(nodes => nodes.map(node => Number(node.dataset.year))), defaultVisibleYears(family));
       assert.ok((await page.locator('link[rel="canonical"]').getAttribute('href')).endsWith(home));
-      assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'), width <= 640 ? 'bottom' : 'left');
+      assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'), width <= 640 ? 'fullscreen' : 'left');
       const geometry = await page.evaluate(() => {
         const matrix = document.querySelector('.timeline-panel').getBoundingClientRect();
         const panel = document.querySelector('#detail-modal').getBoundingClientRect();

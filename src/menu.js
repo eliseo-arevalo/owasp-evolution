@@ -4,11 +4,16 @@ export function menuButton(button, menu) {
   const on = (element, type, handler, options = {}) => element.addEventListener(type, handler, { ...options, signal: listeners.signal });
   let query = '', typedAt = 0;
   const items = () => [...menu.querySelectorAll('[role^="menuitem"]:not(:disabled)')];
+  const focus = item => {
+    items().forEach(choice => { choice.tabIndex = choice === item ? 0 : -1; });
+    item?.focus();
+  };
   function close(restore = false) {
     if (menu.matches(':popover-open')) menu.hidePopover();
     menu.hidden = true;
     button.setAttribute('aria-expanded', 'false');
     query = '';
+    items().forEach(item => { item.tabIndex = -1; });
     if (restore) button.focus();
   }
   function open(last = false) {
@@ -20,7 +25,7 @@ export function menuButton(button, menu) {
       menu.style.top = `${Math.max(8, rect.bottom + box.height + 8 > innerHeight ? rect.top - box.height - 5 : rect.bottom + 5)}px`;
     }
     button.setAttribute('aria-expanded', 'true');
-    (last ? items().at(-1) : items()[0])?.focus();
+    focus(last ? items().at(-1) : items()[0]);
   }
   on(button, 'click', () => menu.hidden ? open() : close(true));
   on(button, 'keydown', event => {
@@ -34,15 +39,20 @@ export function menuButton(button, menu) {
     if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape'].includes(event.key)) {
       event.preventDefault(); event.stopPropagation();
       if (event.key === 'Escape') { close(true); return; }
-      choices[event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus();
+      focus(choices[event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]);
     } else if (event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
       event.preventDefault();
       query = performance.now() - typedAt > 700 ? event.key : query + event.key;
       typedAt = performance.now();
       const prefix = [...query].every(char => char === query[0]) ? query[0] : query;
       const ordered = [...choices.slice(index + 1), ...choices.slice(0, index + 1)];
-      ordered.find(item => item.textContent.trim().toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase()))?.focus();
+      const match = ordered.find(item => item.textContent.trim().toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase()));
+      if (match) focus(match);
     }
+  });
+  on(menu, 'focusin', event => {
+    const choices = items();
+    if (choices.includes(event.target)) choices.forEach(item => { item.tabIndex = item === event.target ? 0 : -1; });
   });
   on(document, 'click', event => {
     if (!button.parentElement.contains(event.target)) close();

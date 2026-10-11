@@ -118,8 +118,8 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
     assert.equal(await page.locator('#detail-page .attack-diagram').evaluate(svg => svg.getAnimations({ subtree: true }).length), 0);
     await page.close();
 
-    // Exercise both side docks at 360/480px and the wide bottom layout.
-    for (const theme of ['dark', 'light']) for (const side of ['left', 'right', 'bottom']) for (const width of side === 'bottom' ? [480] : [360, 480]) {
+    // Exercise both side docks at 360/480px.
+    for (const theme of ['dark', 'light']) for (const side of ['left', 'right']) for (const width of [360, 480]) {
       const dock = await browser.newPage({ viewport: { width: 1440, height: 1000 }, colorScheme: theme, reducedMotion: 'reduce' });
       await dock.addInitScript(({ side, width }) => localStorage.setItem('owasp-dock-layout', JSON.stringify({ desktop: { side, width, height: 620 } })), { side, width });
       for (const item of pilot) {
@@ -127,7 +127,6 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
         await dock.locator('#detail-page .attack-diagram').waitFor();
         await fits(dock, `${theme} ${side} ${width} ${item.id}`);
       }
-      if (side === 'bottom') assert.equal(await dock.locator('.attack-explainer').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 2);
       if (theme === 'dark' && side === 'right' && width === 480) for (const id of ['A05', 'A03']) {
         await dock.goto(route(id, 'es')); await dock.evaluate(() => document.fonts.ready);
         await dock.screenshot({ path: `/workspace/tmp/owasp-visuals2-detail-${id.toLowerCase()}-dark-1440.png`, fullPage: true });

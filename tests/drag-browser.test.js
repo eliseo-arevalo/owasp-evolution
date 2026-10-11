@@ -58,20 +58,20 @@ test('Chrome: pointer dock drag and resize', { skip: !process.env.MOTION_PLAYWRI
     assert.equal(Number(await page.locator('#dock-resizer').getAttribute('aria-valuenow')),keyboardSize+10);
     check(await measure(page));
     await page.screenshot({path:'/workspace/tmp/owasp-drag-desktop-left.png'});
-    for (const side of ['right','bottom']) {
+    for (const side of ['right','left']) {
       const b = await page.locator('.detail-header').boundingBox();
       const shell = await page.locator('.explorer-shell').boundingBox();
       const x = b.x+30, y=b.y+25;
       await page.mouse.move(x,y); await page.mouse.down();
-      await page.mouse.move(side==='right'?shell.x+shell.width-30:shell.x+shell.width/2,side==='bottom'?shell.y+shell.height-30:shell.y+shell.height/2,{steps:15});
+      await page.mouse.move(side==='right'?shell.x+shell.width-30:shell.x+30,shell.y+shell.height/2,{steps:15});
       assert.equal(await page.locator('.dock-drop.is-target').count(),1);
       await page.mouse.up(); await page.waitForTimeout(400);
       assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),side); check(await measure(page));
-      await drag(page.locator('#dock-resizer'),side==='right'?-60:0,side==='bottom'?-60:0);
+      await drag(page.locator('#dock-resizer'),side==='right'?-60:60,0);
       await page.screenshot({path:`/workspace/tmp/owasp-drag-desktop-${side}.png`});
     }
     await page.reload(); await page.waitForTimeout(1000); await page.locator('.risk-detail').click(); await page.waitForTimeout(400);
-    assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),'bottom');
+    assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),'left');
     await page.close();
   } finally { await browser.close(); server.kill(); }
 });

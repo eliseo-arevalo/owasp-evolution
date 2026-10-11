@@ -6,7 +6,9 @@ import { shortcutRows, shortcutCommand } from './shortcuts.js';
 import { iconSVG, attackSectionHTML } from './visuals.js';
 import { pathFor, routeFrom, languageOf } from './routes.js';
 import { menuButton } from './menu.js';
-import { exportFilename, exportCSV, exportJSON, exportMarkdown, matrixSVG, pngBlob, download } from './export.js';
+import { exportFilename, exportCSV, exportJSON, exportMarkdown, canvasSVG, detailSVG, pngBlob, download } from './export.js';
+import { exportControl, copyText } from './export-menu.js';
+import { normalizeDock, readDockPreferences } from './dock.js';
 import { saveLanguagePreference } from './locale.js';
 import { localizeCatalog, translate, staticTranslator } from './i18n.js';
 import {
@@ -76,6 +78,8 @@ let mobileDialog = false;
 let mobileReturnKey = null;
 let lockedScrollY = 0;
 let detailMenu = null;
+let detailExport = null;
+let generalExport = null;
 let sectionObserver = null;
 let stopSectionTracking = null;
 let lineageTitleObserver = null;
@@ -89,20 +93,11 @@ let modalExit = 0;
 const shell = document.querySelector('.explorer-shell');
 const resizer = document.querySelector('#dock-resizer');
 const narrowScreen = matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 960px) and (max-height: 500px)');
-const dockPreferences = { desktop: { side: 'left', width: 380, height: 320 } };
-try {
-  const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
-  for (const key of ['desktop']) {
-    const value = saved[key];
-    if (!value) continue;
-    if (['left', 'right', 'bottom'].includes(value.side)) dockPreferences[key].side = value.side;
-    for (const size of ['width', 'height']) if (Number.isFinite(value[size]) && value[size] > 0) dockPreferences[key][size] = value[size];
-  }
-  if (!saved.desktop) {
-    const legacy = localStorage.getItem('owasp-dock');
-    if (['left', 'right', 'bottom'].includes(legacy)) dockPreferences.desktop.side = legacy;
-  }
-} catch {}
+const dockPreferences = readDockPreferences(localStorage, location.search);
+if (new URLSearchParams(location.search).get('dock') === 'bottom') {
+  const url = new URL(location.href); url.searchParams.set('dock', 'left');
+  history.replaceState(history.state, '', url);
+}
 let dockPosition = dockPreferences.desktop.side;
 let dragSize = null;
 const preference = () => dockPreferences.desktop;
@@ -673,7 +668,7 @@ function detailFeedback(message, error = false, copied = false) {
   feedbackTimer = setTimeout(() => { status.hidden = true; status.textContent = ''; resetCopy(); }, error ? 4000 : 1500);
 }
 
-function detailOverflow(family, risk) {
+function detailOverflow() {
   const wrap = node('div', 'detail-overflow');
   const button = actionButton('overflow', 'dots-three', 'Más acciones', '', () => {});
   button.setAttribute('aria-haspopup', 'menu');
@@ -702,7 +697,7 @@ function detailOverflow(family, risk) {
     parent.append(item);
     return item;
   }
-  for (const [index, [value, label, icon]] of [['left', 'Panel a la izquierda', 'sidebar-simple'], ['right', 'Panel a la derecha', 'sidebar-simple'], ['bottom', 'Panel abajo', 'layout']].entries()) {
+  for (const [index, [value, label, icon]] of [['left', 'Panel a la izquierda', 'sidebar-simple'], ['right', 'Panel a la derecha', 'sidebar-simple']].entries()) {
     const item = menuItem(`dock-${value}`, icon, label, String(index + 1), () => {
       setDock(value);
       detailFeedback(t(label));
@@ -725,12 +720,6 @@ function detailOverflow(family, risk) {
       if (button.isConnected) detailFeedback(t('Copiado'), false, true);
     } catch { if (button.isConnected) detailFeedback(t('No se pudo copiar el enlace'), true); }
   });
-  menuItem('markdown', 'download-simple', 'Exportar Markdown', '', () => {
-    try {
-      download(new Blob([exportMarkdown(family, risk.year, risk, language)], { type: 'text/markdown;charset=utf-8' }), `owasp-${family.id}-${risk.year}-${risk.id}.md`);
-      detailFeedback(t('Descargado'));
-    } catch { detailFeedback(t('No se pudo exportar. Inténtalo de nuevo.'), true); }
-  });
   menuItem('shortcuts', 'keyboard', 'Atajos de teclado', '?', showShortcuts);
   wrap.append(button, menu);
   detailMenu = menuButton(button, menu);
@@ -750,8 +739,8 @@ function moveSelection(key) {
 function setDock(position) {
   if (!currentRoute.detail || narrowScreen.matches) return;
   if (fullscreen) toggleFullscreen();
-  dockPosition = position;
-  dockPreferences.desktop.side = position;
+  dockPosition = normalizeDock(position);
+  dockPreferences.desktop.side = dockPosition;
   saveDock(); updateDock();
 }
 
@@ -917,6 +906,7 @@ function renderLineage(family, risk, lineage) {
 function renderDetail(family, risk, lineage) {
   tooltips.hide();
   detailMenu?.destroy();
+  detailExport?.destroy();
   sectionObserver?.disconnect();
   lineageTitleObserver?.disconnect();
   stopSectionTracking?.();
@@ -939,7 +929,8 @@ function renderDetail(family, risk, lineage) {
   next.disabled = risk.rank === edition.items.length;
   const full = actionButton('fullscreen', fullscreen ? 'arrows-in' : 'arrows-out', fullscreen ? 'Volver al panel' : 'Abrir en pantalla completa', 'F', toggleFullscreen);
   full.setAttribute('aria-pressed', String(fullscreen));
-  toolbar.append(previous, next, full, detailOverflow(family, risk), close);
+  detailExport = exportControl({ id: 'detail-export', t, compact: true, run: (format, parent) => runExport(format, true, parent) });
+  toolbar.append(previous, next, full, detailExport.element, detailOverflow(), close);
   top.append(toolbar);
 
   const heading = node('h1', '', risk.name);
@@ -1186,10 +1177,8 @@ shell.addEventListener('transitionrun', event => {
 });
 
 function dockLimits() {
-  const bottom = shell.dataset.dock === 'bottom';
-  const available = bottom ? shell.clientHeight - 22 : shell.clientWidth;
-  return { min: bottom ? Math.max(100, available * .25) : 240,
-    max: bottom ? available * .9 : Math.max(240, available * .48), available };
+  const available = shell.clientWidth;
+  return { min: 240, max: Math.max(240, available * .48), available };
 }
 // Native modality isolates the matrix; fixed body locking also covers iOS scrolling.
 function syncMobileDialog() {
@@ -1223,11 +1212,10 @@ function updateDock() {
   syncMobileDialog();
   const position = narrowScreen.matches ? 'fullscreen' : dockPosition;
   shell.dataset.dock = position;
-  const bottom = position === 'bottom';
   const { min, max, available } = dockLimits();
-  const size = Math.max(min, Math.min(max, dragSize ?? (preference()[bottom ? 'height' : 'width'] || available * .5)));
+  const size = Math.max(min, Math.min(max, dragSize ?? (preference().width || available * .5)));
   shell.style.setProperty('--dock-size', `${size}px`);
-  resizer.setAttribute('aria-orientation', bottom ? 'horizontal' : 'vertical');
+  resizer.setAttribute('aria-orientation', 'vertical');
   resizer.setAttribute('aria-valuemin', String(Math.round(min)));
   resizer.setAttribute('aria-valuemax', String(Math.round(max)));
   resizer.setAttribute('aria-valuenow', String(Math.round(size)));
@@ -1245,7 +1233,7 @@ function updateDock() {
 }
 function commitDock(size) {
   const { min, max } = dockLimits();
-  preference()[shell.dataset.dock === 'bottom' ? 'height' : 'width'] = Math.max(min, Math.min(max, size));
+  preference().width = Math.max(min, Math.min(max, size));
   dragSize = null;
   saveDock();
   updateDock();
@@ -1258,8 +1246,8 @@ resizer.addEventListener('pointerdown', (event) => {
   event.preventDefault();
   resizer.setPointerCapture(event.pointerId);
   shell.classList.add('is-resizing');
-  const side = shell.dataset.dock, bottom = side === 'bottom';
-  const axis = e => bottom ? e.clientY : e.clientX;
+  const side = shell.dataset.dock;
+  const axis = e => e.clientX;
   const start = axis(event), initial = Number(resizer.getAttribute('aria-valuenow'));
   const { min, max } = dockLimits();
   let raw = initial, velocity = 0, previous = start, time = event.timeStamp, frame = 0, paintedSize = initial;
@@ -1270,10 +1258,8 @@ resizer.addEventListener('pointerdown', (event) => {
     // Reserve matrix space first, then interpolate the growing panel with a
     // transform inside its slot. Shrinking never paints over the matrix.
     const scale = reducedMotion() ? 1 : Math.min(1, paintedSize / dragSize);
-    elements.detailModal.style.transformOrigin = bottom ? 'bottom' : side === 'left' ? 'left' : 'right';
-    elements.detailModal.style.transform = bottom && raw < min
-      ? `translateY(${Math.min(min - raw, min)}px)`
-      : `${bottom ? 'scaleY' : 'scaleX'}(${scale})`;
+    elements.detailModal.style.transformOrigin = side === 'left' ? 'left' : 'right';
+    elements.detailModal.style.transform = `scaleX(${scale})`;
     paintedSize = dragSize;
     drawConnections();
   };
@@ -1295,12 +1281,7 @@ resizer.addEventListener('pointerdown', (event) => {
     resizer.removeEventListener('pointermove', move);
     const cancelled = e.type !== 'pointerup';
     const projected = raw + (performance.now() - time < 120 ? velocity * 160 : 0);
-    if (!cancelled && bottom && (raw < min * .65 || projected < min * .45)) {
-      dragSize = null; updateDock(); returnToMatrix();
-    } else {
-      const target = cancelled ? initial : projected;
-      commitDock(target);
-    }
+    commitDock(cancelled ? initial : projected);
     scheduleConnections();
   };
   resizer.addEventListener('pointermove', move);
@@ -1309,8 +1290,7 @@ resizer.addEventListener('pointerdown', (event) => {
 resizer.addEventListener('keydown', (event) => {
   if (narrowScreen.matches) return;
   const sign = shell.dataset.dock === 'left' ? 1 : -1;
-  const bottom = shell.dataset.dock === 'bottom';
-  const direction = bottom ? { ArrowUp: 1, ArrowDown: -1 } : { ArrowLeft: -sign, ArrowRight: sign };
+  const direction = { ArrowLeft: -sign, ArrowRight: sign };
   if (!direction[event.key]) return;
   event.preventDefault();
   resizeDock(direction[event.key] * (event.shiftKey ? 40 : 10));
@@ -1323,7 +1303,7 @@ elements.detailModal.addEventListener('pointerdown', event => {
   header.setPointerCapture(event.pointerId);
   const x = event.clientX, y = event.clientY;
   let target = null, moved = false, frame = 0;
-  const zones = ['left', 'right', 'bottom'].map(side => {
+  const zones = ['left', 'right'].map(side => {
     const zone = node('div', `dock-drop dock-drop-${side}`);
     zone.setAttribute('aria-hidden', 'true'); shell.append(zone); return zone;
   });
@@ -1331,11 +1311,11 @@ elements.detailModal.addEventListener('pointerdown', event => {
     if (e.pointerId !== event.pointerId) return;
     moved ||= Math.hypot(e.clientX - x, e.clientY - y) > 8;
     const box = shell.getBoundingClientRect();
-    target = e.clientY > box.bottom - box.height * .25 ? 'bottom' : e.clientX < box.left + box.width * .25 ? 'left' : e.clientX > box.right - box.width * .25 ? 'right' : null;
+    target = e.clientX < box.left + box.width * .25 ? 'left' : e.clientX > box.right - box.width * .25 ? 'right' : null;
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
       header.style.transform = moved ? `translate(${(e.clientX - x) * .06}px, ${(e.clientY - y) * .06}px)` : '';
-      zones.forEach((zone, i) => zone.classList.toggle('is-target', ['left', 'right', 'bottom'][i] === target));
+      zones.forEach((zone, i) => zone.classList.toggle('is-target', ['left', 'right'][i] === target));
     });
   };
   const finish = e => {
@@ -1415,6 +1395,7 @@ function render() {
   const lineage = getLineage(catalog, currentRoute.family, currentRoute.year, currentRoute.id);
 
   applyStaticLanguage(language);
+  if (generalExport) renderGeneralExport();
   document.querySelector('#language-select').dataset.segment = language === 'en' ? '1' : '0';
   for (const button of document.querySelectorAll('[data-language]')) {
     const selected = button.dataset.language === language;
@@ -1681,32 +1662,32 @@ document.querySelector('#theme-menu').addEventListener('click', event => {
 systemTheme.addEventListener('change', () => applyTheme(document.documentElement.dataset.themePreference));
 applyTheme(document.documentElement.dataset.themePreference);
 
-const exportButton = document.querySelector('#export-button');
-const exportMenu = document.querySelector('#export-menu');
-const { close: closeExport } = menuButton(exportButton, exportMenu);
-exportMenu.addEventListener('click', async (event) => {
-  const format = event.target.dataset.export;
-  if (!format || event.target.disabled) return;
-  closeExport(true);
+function renderGeneralExport() {
+  generalExport?.destroy();
+  generalExport = exportControl({ id: 'export', t, data: true, run: (format, parent) => runExport(format, false, parent) });
+  document.querySelector('#export-slot').replaceChildren(generalExport.element);
+}
+async function runExport(format, detail = false, parent) {
   const family = catalog.families[currentRoute.family];
   const years = [...yearFilters.get(family.id)];
-  const item = getRisk(catalog, family.id, currentRoute.year, currentRoute.id);
-  try {
-    let blob;
-    if (format === 'png' || format === 'svg') {
-      await document.fonts.ready;
-      drawConnections();
-      const image = matrixSVG(elements.timelineStage, language);
-      blob = format === 'png' ? await pngBlob(image) : new Blob([image.svg], { type: 'image/svg+xml;charset=utf-8' });
-    } else {
-      const content = format === 'csv' ? exportCSV(family, years) : format === 'json' ? exportJSON(family, years) : exportMarkdown(family, currentRoute.year, item, language);
-      blob = new Blob([content], { type: format === 'csv' ? 'text/csv;charset=utf-8' : format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8' });
-    }
-    download(blob, exportFilename(family.id, years, format));
-  } catch {
-    document.querySelector('#export-status').textContent = t('No se pudo exportar. Inténtalo de nuevo.');
+  const item = (detail || currentRoute.detail) ? getRisk(catalog, family.id, currentRoute.year, currentRoute.id) : null;
+  const markdown = () => exportMarkdown(family, currentRoute.year, item, language, { years, origin: location.origin });
+  if (format === 'copy') {
+    await copyText(markdown(), parent);
+    return;
   }
-});
+  let blob;
+  if (format === 'png' || format === 'svg') {
+    drawConnections();
+    const image = detail ? await detailSVG(elements.detailPage) : await canvasSVG(elements.timelineStage, elements.detailPage, language);
+    blob = format === 'png' ? await pngBlob(image) : new Blob([image.svg], { type: 'image/svg+xml;charset=utf-8' });
+  } else {
+    const content = format === 'csv' ? exportCSV(family, years, language) : format === 'json' ? exportJSON(family, years, language) : markdown();
+    blob = new Blob([content], { type: format === 'csv' ? 'text/csv;charset=utf-8' : format === 'json' ? 'application/json' : 'text/markdown;charset=utf-8' });
+  }
+  download(blob, detail ? `owasp-${family.id}-${currentRoute.year}-${item.id}.${format}` : exportFilename(family.id, years, format));
+}
+renderGeneralExport();
 
 document.querySelector('.skip-link').addEventListener('click', event => {
   event.preventDefault();

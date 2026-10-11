@@ -15,27 +15,28 @@
       const root = document.documentElement;
       const deepDetail = /\/\d{4}\/[^/]+/.test(location.pathname) || /\/detalle$/.test(location.hash);
       let open = true;
-      const desktop = { side: 'left', width: 380, height: 320 };
+      const desktop = { side: 'left', width: 380 };
       const narrow = matchMedia('(max-width: 640px), (pointer: coarse) and (max-width: 960px) and (max-height: 500px)').matches;
       try {
         open = localStorage.getItem('owasp-detail-open') !== 'false';
         const saved = JSON.parse(localStorage.getItem('owasp-dock-layout') || '{}');
         for (const [dock, value] of [[desktop, saved.desktop]]) {
           if (!value) continue;
-          if (['left', 'right', 'bottom'].includes(value.side)) dock.side = value.side;
-          for (const size of ['width', 'height']) if (Number.isFinite(value[size]) && value[size] > 0) dock[size] = value[size];
+          if (['left', 'right'].includes(value.side)) dock.side = value.side;
+          for (const size of ['width']) if (Number.isFinite(value[size]) && value[size] > 0) dock[size] = value[size];
         }
         if (!saved.desktop) desktop.side = localStorage.getItem('owasp-dock') || 'left';
       } catch {}
+      const requestedDock = new URLSearchParams(location.search).get('dock');
+      if (requestedDock) desktop.side = requestedDock === 'right' ? 'right' : 'left';
       // A legacy matrix hash explicitly requests a selection without detail.
       if (!narrow && (deepDetail || (open && !location.hash.startsWith('#/')))) {
         const dock = desktop;
-        const side = ['left', 'right', 'bottom'].includes(dock.side) ? dock.side : 'left';
-        const size = side === 'bottom' ? dock.height : dock.width;
+        const side = ['left', 'right'].includes(dock.side) ? dock.side : 'left';
+        const size = dock.width;
         root.dataset.initialDetail = 'true';
         root.dataset.initialDock = side;
-        root.style.setProperty('--initial-dock-size', `${Number.isFinite(size) && size > 0 ? size : side === 'bottom' ? 0 : 380}px`);
-        if (side === 'bottom' && !(Number.isFinite(size) && size > 0)) root.dataset.initialPeek = 'true';
+        root.style.setProperty('--initial-dock-size', `${Number.isFinite(size) && size > 0 ? size : 380}px`);
       }
       let theme = 'system';
       try { theme = localStorage.getItem('owasp-theme') || 'system'; } catch {}
@@ -71,17 +72,7 @@
         <div id="search-results" class="search-results" hidden></div>
       </div>
 
-      <div class="export-control">
-        <button id="export-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="export-menu">Exportar</button>
-        <div id="export-menu" class="control-menu" role="menu" aria-labelledby="export-button" hidden>
-          <button type="button" role="menuitem" tabindex="-1" data-export="png">PNG · 2×</button>
-          <button type="button" role="menuitem" tabindex="-1" data-export="svg">SVG</button>
-          <button type="button" role="menuitem" tabindex="-1" data-export="csv">CSV</button>
-          <button type="button" role="menuitem" tabindex="-1" data-export="json">JSON</button>
-          <button type="button" role="menuitem" tabindex="-1" data-export="md">Markdown · detalle</button>
-        </div>
-      </div>
-      <span id="export-status" class="sr-only" role="status"></span>
+      <div id="export-slot"><button class="export-button" type="button" disabled>Exportar</button></div>
       <div class="language-control segmented" id="language-select" data-segment="0" role="radiogroup" aria-label="Idioma">
         <button type="button" role="radio" data-language="es" aria-checked="true" tabindex="0">ES</button>
         <button type="button" role="radio" data-language="en" aria-checked="false" tabindex="-1">EN</button>
@@ -112,7 +103,7 @@
       </div>
     </section>
 
-    <section class="explorer-shell" data-dock="bottom">
+    <section class="explorer-shell" data-dock="left">
       <div class="timeline-panel" id="timeline" tabindex="-1">
         <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Matriz de evolución de categorías">
           <div class="timeline-stage" id="timeline-stage">
@@ -123,7 +114,7 @@
       </div>
 
       <dialog class="detail-modal" id="detail-modal" role="dialog" aria-labelledby="detail-title">
-        <div class="dock-resizer" id="dock-resizer" role="separator" tabindex="0" aria-controls="timeline detail-modal" aria-label="Cambiar tamaño del panel" aria-orientation="horizontal" aria-valuemin="200" aria-valuemax="600" aria-valuenow="320"></div>
+        <div class="dock-resizer" id="dock-resizer" role="separator" tabindex="0" aria-controls="timeline detail-modal" aria-label="Cambiar tamaño del panel" aria-orientation="vertical" aria-valuemin="240" aria-valuemax="600" aria-valuenow="320"></div>
         <article class="detail-page" id="detail-page"></article>
       </dialog>
     </section>

@@ -84,7 +84,9 @@ test('Chrome: mobile fullscreen, history, focus, scrolling and actions at 375×8
       await action(page, 'overflow').tap();
       assert.equal(await page.locator('#dock-select').isVisible(), false);
       assert.equal(await page.locator('#dock-select button').first().isDisabled(), true);
-      const [download] = await Promise.all([page.waitForEvent('download'), action(page, 'markdown').tap()]);
+      await page.keyboard.press('Escape');
+      await page.locator('#detail-export-button').tap();
+      const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#detail-export-menu [data-export=md]').tap()]);
       assert.match(download.suggestedFilename(), /\.md$/);
       // Back closes in one step after navigation and restores the original trigger.
       await action(page, 'next').tap();
@@ -96,7 +98,7 @@ test('Chrome: mobile fullscreen, history, focus, scrolling and actions at 375×8
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.waitForFunction(() => !document.querySelector('#detail-modal').matches(':modal'));
       assert.equal(await page.evaluate(() => document.body.classList.contains('mobile-detail-open')), false);
-      for (const dock of ['right', 'bottom', 'left']) {
+      for (const dock of ['right', 'left']) {
         await page.waitForTimeout(350); // Finish viewport/grid transitions before opening a positioned menu.
         await action(page, 'overflow').click();
         await page.locator(`#dock-select [data-dock="${dock}"]`).click();

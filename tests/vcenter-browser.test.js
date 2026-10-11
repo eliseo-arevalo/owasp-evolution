@@ -35,7 +35,7 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
               await page.waitForTimeout(250);
             }
             assert.deepEqual(await page.locator('.toolbar').boundingBox(), chrome);
-            for (const dock of ['closed', 'bottom', 'left', 'right']) {
+            for (const dock of ['closed', 'left', 'right']) {
               if (dock === 'closed') {
                 await page.evaluate(() => { if (document.querySelector('#detail-modal').open) document.querySelector('.detail-back').click(); });
               } else {
@@ -68,7 +68,7 @@ test('Chrome safely centers the matrix and keeps connectors attached across view
               assert.ok(m.fits ? Math.abs(m.top-m.bottom) <= 2 : Math.abs(m.top-1) <= 1, JSON.stringify(context));
               assert.ok(m.error < 1, JSON.stringify(context));
               measurements.push(context);
-              if (theme === 'light' && (count === 3 || family === 'llm' && count === 2) && ((width === 1440 && height === 1000 && family === 'web' && ['closed','bottom'].includes(dock)) || (width === 1440 && height === 1200 && family === 'llm' && dock === 'closed') || (width === 390 && family === 'web' && dock === 'closed'))) {
+              if (theme === 'light' && (count === 3 || family === 'llm' && count === 2) && ((width === 1440 && height === 1000 && family === 'web' && dock === 'closed') || (width === 1440 && height === 1200 && family === 'llm' && dock === 'closed') || (width === 390 && family === 'web' && dock === 'closed'))) {
                 await page.screenshot({ path: `/workspace/tmp/owasp-vcenter-${width}x${height}-${family}-${dock}.png` });
               }
             }

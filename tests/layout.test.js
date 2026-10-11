@@ -130,7 +130,7 @@ test('detail is a docked reading panel in the matrix layout with inner scroll', 
   assert.match(rule(css, '.detail-modal'), /overflow:\s*hidden/);
   assert.match(rule(css, '.detail-body'), /overflow-y:\s*auto/);
   assert.match(html, /class="explorer-shell"[\s\S]*<dialog[^>]*id="detail-modal"[\s\S]*<\/dialog>[\s\S]*<\/section>/);
-  assert.match(css, /grid-template-rows: minmax\(0, 1fr\) var\(--dock-size\)/);
+  assert.doesNotMatch(css, /data-dock=['"]bottom/);
   assert.match(css, /grid-template-columns: var\(--dock-size\) minmax\(0, 1fr\)/);
   assert.match(css, /grid-template-columns: minmax\(0, 1fr\) var\(--dock-size\)/);
 });

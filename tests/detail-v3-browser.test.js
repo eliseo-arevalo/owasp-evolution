@@ -48,7 +48,7 @@ test('Chrome: live detail navigation, keyboard, fullscreen focus, bilingual help
     assert.equal(await page.locator('#detail-modal').evaluate(d=>d.open),true);
     assert.equal(await page.locator('.risk-card.is-selected').getAttribute('data-key'),endpoint);
     assert.deepEqual(await page.evaluate(()=>window.panelEvents),[]);
-    await page.goto(route('A01')); await page.locator('.detail-back').focus();
+    await page.goto(route('A01')); await page.locator('#detail-page .detail-back').focus();
     await page.keyboard.press('ArrowDown'); assert.equal(page.url(),route('A02'));
     await page.keyboard.press('k'); assert.equal(page.url(),route('A01'));
     await page.keyboard.press('j'); assert.equal(page.url(),route('A02'));
@@ -57,12 +57,13 @@ test('Chrome: live detail navigation, keyboard, fullscreen focus, bilingual help
     await page.keyboard.press(']'); assert.equal(page.url(),route('A01'));
     await page.keyboard.press('ArrowLeft'); assert.ok(page.url().includes('/2021/'));
     await page.keyboard.press('ArrowRight'); assert.equal(page.url(),route('A01'));
-    for(const [key,side] of [['2','right'],['3','bottom'],['1','left']]) {
+    for(const [key,side] of [['2','right'],['1','left']]) {
       await page.keyboard.press(key); assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'),side);
     }
     await page.keyboard.press('f');
     assert.equal(await page.locator('#detail-modal').evaluate(d=>d.matches(':modal')),true);
     assert.equal(await page.locator('#detail-page .detail-grid').evaluate(d=>getComputedStyle(d).gridTemplateColumns.split(' ').length),2);
+    await page.waitForFunction(() => document.activeElement?.dataset.action === 'fullscreen');
     const controls = page.locator('#detail-page button:not([disabled]), #detail-page a[href]');
     await controls.last().focus(); await page.keyboard.press('Tab');
     assert.ok(await controls.first().evaluate(d=>document.activeElement===d));
@@ -92,19 +93,19 @@ test('Chrome: live detail navigation, keyboard, fullscreen focus, bilingual help
     await page.keyboard.type('jkf123[]?'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
     assert.equal(page.url(),beforeTyping);
     assert.equal(await page.locator('#shortcuts-dialog').evaluate(d=>d.open),false);
-    await page.locator('.detail-back').focus(); await page.keyboard.press('Control+k');
+    await page.locator('#detail-page .detail-back').focus(); await page.keyboard.press('Control+k');
     assert.ok(await page.locator('#risk-search').evaluate(d=>d===document.activeElement));
-    await page.locator('.detail-back').focus(); await page.keyboard.press('Meta+k');
+    await page.locator('#detail-page .detail-back').focus(); await page.keyboard.press('Meta+k');
     assert.ok(await page.locator('#risk-search').evaluate(d=>d===document.activeElement));
-    await page.locator('.detail-back').focus(); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    await page.locator('#detail-page .detail-back').focus(); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     assert.equal(await page.locator('#detail-modal').evaluate(d=>d.open),false);
     const selected=page.locator('.is-selected .risk-focus'); await selected.focus();
     await page.keyboard.press('ArrowDown'); assert.ok(await page.locator('.risk-card[data-key="2025:A03"] .risk-focus').evaluate(d=>d===document.activeElement));
     assert.equal(await page.locator('#detail-modal').evaluate(d=>d.open),false);
     await page.keyboard.press('Enter'); assert.ok(await page.locator('#detail-modal').evaluate(d=>d.open)); assert.equal(page.url(),route('A03'));
     // Item export uses the selected category, independent of visible years.
-    await page.locator('#detail-page [data-action="overflow"]').click();
-    const download=page.waitForEvent('download'); await page.locator('#detail-page [data-action="markdown"]').click();
+    await page.locator('#detail-export-button').click();
+    const download=page.waitForEvent('download'); await page.locator('#detail-export-menu [data-export="md"]').click();
     const file=await download; assert.equal(file.suggestedFilename(),'owasp-web-2025-A03.md');
     await page.goto(route('A01')); await page.evaluate(()=>document.fonts.ready); await page.waitForTimeout(300);
     await page.evaluate(()=>document.activeElement.blur());
@@ -117,7 +118,7 @@ test('Chrome: live detail navigation, keyboard, fullscreen focus, bilingual help
 
     // 2x density plus geometry checks on every label, node and arrow in both languages.
     const audit=[];
-    for(const theme of ['dark','light']) for(const [side,width] of [['left',360],['right',520],['bottom',520]]) {
+    for(const theme of ['dark','light']) for(const [side,width] of [['left',360],['right',520]]) {
       const p=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:2,colorScheme:theme,reducedMotion:'reduce'});
       p.on('pageerror',e=>errors.push(e.message));
       await p.addInitScript(({side,width,theme})=>{

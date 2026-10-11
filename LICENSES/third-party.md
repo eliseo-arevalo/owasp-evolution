@@ -15,3 +15,5 @@ Additional duotone paths in `src/icons.js`, from the same pinned upstream commit
 The compact detail toolbar also uses the primary outlines for `caret-left`, `caret-right`, `check`, and `dots-three` from Phosphor Icons under the same MIT license.
 
 The support utility uses the `coffee` duotone paths from the same pinned upstream commit, with a neutral secondary fill.
+
+The shared Export menus use `image`, `copy`, and `table` duotone paths from the same pinned upstream commit.

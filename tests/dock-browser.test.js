@@ -64,7 +64,7 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
       assert.ok(frames.every(f=>f.theme===theme&&f.bg===(theme==='dark'?'rgb(17, 17, 17)':'rgb(247, 247, 247)')),JSON.stringify(frames));
       assert.equal(await page.locator('[data-theme-choice][aria-checked="true"]').getAttribute('data-theme-choice'),theme);
       await page.locator('[data-language="es"]').click();
-      for(const dock of width===1440?['bottom','right','left']:['bottom']) {
+      for(const dock of ['right','left']) {
         await sampleAnimation(page,()=>page.locator('.risk-detail').click());
         await page.waitForTimeout(100);
         if(width===1440) { await page.locator('[data-action="overflow"]').click(); await page.locator(`#dock-select [data-dock="${dock}"]`).click(); }
@@ -78,10 +78,10 @@ test('Chrome: themes, dock geometry, resize connectors, focus, persistence and s
         const handle=await page.locator('#dock-resizer').boundingBox();
         await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2);
         await page.mouse.down();
-        await page.mouse.move(handle.x+handle.width/2+(dock==='bottom'?0:dock==='left'?40:-40),handle.y+handle.height/2+(dock==='bottom'?-30:0),{steps:8});
+        await page.mouse.move(handle.x+handle.width/2+(dock==='left'?40:-40),handle.y+handle.height/2,{steps:8});
         await page.mouse.up();await page.waitForTimeout(100);check(await measure(page));
         await page.locator('#dock-resizer').focus();
-        await page.keyboard.press(dock==='bottom'?'ArrowUp':'ArrowRight');
+        await page.keyboard.press('ArrowRight');
         await page.waitForTimeout(350);check(await measure(page));
         // Narrow layouts promote the dock to a modal, then restore its desktop side.
         await page.setViewportSize({width:390,height:900});await page.waitForTimeout(350);

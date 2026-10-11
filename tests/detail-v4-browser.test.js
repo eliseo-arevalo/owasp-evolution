@@ -75,9 +75,9 @@ test('Chrome v4: feedback, shared delayed tooltip, overflow APG actions, scroll 
     // Shared menu supports radio states, keyboard movement, hints and focus return.
     await menu(page).focus(); await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement.dataset.dock), 'left');
-    assert.equal(await page.locator('#detail-menu [role="menuitemradio"]').count(), 3);
-    assert.equal(await page.locator('#detail-menu [role="menuitem"]').count(), 3);
-    assert.equal(await page.locator('#detail-menu kbd').count(), 4);
+    assert.equal(await page.locator('#detail-menu [role="menuitemradio"]').count(), 2);
+    assert.equal(await page.locator('#detail-menu [role="menuitem"]').count(), 2);
+    assert.equal(await page.locator('#detail-menu kbd').count(), 3);
     await shot(page, 'overflow-dark-1440');
     await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
     assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'), 'right');
@@ -85,8 +85,6 @@ test('Chrome v4: feedback, shared delayed tooltip, overflow APG actions, scroll 
     assert.equal(await page.locator('[data-dock="right"][role="menuitemradio"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await menu(page).getAttribute('aria-expanded'), 'false');
     assert.equal(await menu(page).evaluate(button => button === document.activeElement), true);
-    await menu(page).click(); await action(page, 'dock-bottom').click();
-    assert.equal(await page.locator('.explorer-shell').getAttribute('data-dock'), 'bottom');
     await menu(page).click(); await action(page, 'dock-left').click();
     await menu(page).click(); await page.keyboard.press('End');
     assert.equal(await page.evaluate(() => document.activeElement.dataset.action), 'shortcuts');
@@ -109,11 +107,10 @@ test('Chrome v4: feedback, shared delayed tooltip, overflow APG actions, scroll 
     assert.equal(await page.locator('.detail-feedback').textContent(), 'No se pudo copiar el enlace');
     assert.equal(await page.locator('.detail-feedback').isVisible(), true);
     await page.evaluate(() => window.copyFailure = false);
-    await menu(page).click();
+    await page.locator('#detail-export-button').click();
     const downloading = page.waitForEvent('download');
-    await action(page, 'markdown').click();
+    await page.locator('#detail-export-menu [data-export=md]').click();
     assert.equal((await downloading).suggestedFilename(), 'owasp-web-2025-A01.md');
-    assert.equal(await page.locator('.detail-feedback').textContent(), 'Descargado');
     await menu(page).click(); await action(page, 'shortcuts').click();
     assert.equal(await page.locator('#shortcuts-dialog').evaluate(dialog => dialog.matches(':modal')), true);
     await page.keyboard.press('Escape');
@@ -167,8 +164,7 @@ test('Chrome v4: feedback, shared delayed tooltip, overflow APG actions, scroll 
     await page.goto(url('web', 2025, 'A01', 'en'));
     await menu(page).click(); await action(page, 'copy').click();
     assert.equal(await page.locator('.detail-feedback').textContent(), 'Copied');
-    await menu(page).click(); await action(page, 'markdown').click();
-    assert.equal(await page.locator('.detail-feedback').textContent(), 'Downloaded');
+    await page.locator('#detail-export-button').click(); await page.locator('#detail-export-menu [data-export=md]').click();
     await page.goto(url('web', 2021, 'A06'));
     await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(300);
     const lines = await page.locator('#detail-title').evaluate(title => title.getBoundingClientRect().height / parseFloat(getComputedStyle(title).lineHeight));

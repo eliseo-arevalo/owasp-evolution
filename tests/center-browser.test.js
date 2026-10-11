@@ -8,7 +8,7 @@ test('Chrome centers every edition count and keeps connectors aligned across vie
   const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',args:['--no-sandbox']});
   const results=[];
   try {
-  for(const width of [1440,1024,390]) for(const count of [2,3,4]) for(const dock of ['none','bottom','left','right']) {
+  for(const width of [1440,1024,390]) for(const count of [2,3,4]) for(const dock of ['none','left','right']) {
   const page=await browser.newPage({viewport:{width,height:900}});
   await page.goto('http://localhost:4194/#/web/2025/A01');await page.waitForTimeout(1300);
   while(await page.locator('.edition-toggle[aria-pressed="true"]').count()>count) {await page.locator('.edition-toggle[aria-pressed="true"]').first().click();await page.waitForTimeout(300);}

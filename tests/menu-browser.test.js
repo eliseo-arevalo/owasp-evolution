@@ -29,9 +29,9 @@ test('menus, mobile names and locked detail emphasis in Chrome', { skip: !proces
       await button.click(); await page.locator('.brand').click();
       assert.equal(await button.getAttribute('aria-expanded'), 'false');
       await page.locator('#export-button').focus(); await page.keyboard.press('ArrowUp');
-      assert.equal(await page.evaluate(() => document.activeElement.dataset.export), 'md');
+      assert.equal(await page.evaluate(() => document.activeElement.dataset.export), 'json');
       await page.keyboard.press('c');
-      assert.equal(await page.evaluate(() => document.activeElement.dataset.export), 'csv');
+      assert.equal(await page.evaluate(() => document.activeElement.dataset.export), 'copy');
       await page.keyboard.press('Escape');
       await button.focus(); await page.keyboard.press('ArrowDown');
       await page.keyboard.press(theme === 'dark' ? 'd' : 'l'); await page.keyboard.press('Space');

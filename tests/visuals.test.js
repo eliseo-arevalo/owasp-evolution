@@ -84,8 +84,13 @@ test('every pilot category prerenders accessible SVG and explanatory text before
 
 });
 
-test('Markdown export remains textual without diagram or icon markup', () => {
-  for (const item of pilot) assert.doesNotMatch(exportMarkdown(catalog.families.web, 2025, item, 'en'), /<svg|attack-diagram|How the attack works/);
+test('Markdown embeds attack diagrams as data images without raw SVG markup', () => {
+  for (const item of pilot) {
+    const md = exportMarkdown(catalog.families.web, 2025, item, 'en');
+    assert.match(md, /data:image\/svg\+xml;base64,/);
+    assert.match(md, /How the attack works/);
+    assert.doesNotMatch(md, /<svg|attack-diagram/);
+  }
 });
 
 test('build compaction preserves every localized SVG byte for byte', async () => {

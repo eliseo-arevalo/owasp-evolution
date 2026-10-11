@@ -7,7 +7,7 @@ export const shortcutRows = [
   ['Esc', 'Cerrar ayuda, volver de pantalla completa o cerrar panel', 'Close help, return from full screen or close panel'],
   ['/ · Ctrl / ⌘ + K', 'Enfocar búsqueda', 'Focus search'],
   ['F', 'Alternar pantalla completa del detalle', 'Toggle full screen detail'],
-  ['1 / 2 / 3', 'Acoplar panel a izquierda / derecha / abajo', 'Dock panel left / right / bottom'],
+  ['1 / 2', 'Acoplar panel a izquierda / derecha', 'Dock panel left / right'],
   ['?', 'Mostrar esta ayuda', 'Show this help'],
 ];
 export function shortcutCommand(event) {
@@ -17,7 +17,7 @@ export function shortcutCommand(event) {
   if (event.ctrlKey || event.metaKey) return null;
   if (event.shiftKey && !['?', '{', '}'].includes(key)) return null;
   return ({ '/': 'search', '?': 'help', escape: 'escape', enter: 'open', f: 'fullscreen',
-    '1': 'dock:left', '2': 'dock:right', '3': 'dock:bottom',
+    '1': 'dock:left', '2': 'dock:right',
     arrowup: 'move:ArrowUp', k: 'move:ArrowUp', arrowdown: 'move:ArrowDown', j: 'move:ArrowDown',
     arrowleft: 'move:ArrowLeft', '[': 'move:ArrowLeft', arrowright: 'move:ArrowRight', ']': 'move:ArrowRight',
     home: 'move:Home', end: 'move:End' })[key] || null;
