@@ -196,7 +196,8 @@ test('shared Export menus: both contexts, keyboard, copy fallback, dock migratio
       assert.ok(svg.includes('data-layout="input-to-query"'));
       assert.ok(svg.includes(language === 'es' ? 'RESUMEN' : 'SUMMARY'));
       assert.ok(svg.includes(language === 'es' ? 'PREVENCIÓN' : 'PREVENTION'));
-      assert.ok(svg.includes('request.query'));
+      const exportedText = await page.evaluate(svg => new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement.textContent, svg);
+      assert.ok(exportedText.includes("' OR '1'='1"));
       assert.ok(svg.includes(language === 'es' ? 'Abrir fuente oficial' : 'Open official source'));
       assert.doesNotMatch(svg, /Ko-fi|proyecto no oficial|unofficial project|<button|foreignObject/);
       const png = await downloadImage('detail-export', 'png');

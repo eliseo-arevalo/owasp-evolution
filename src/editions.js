@@ -26,7 +26,10 @@ export function visibleConnections(family, years, highlightedEdges = []) {
       const key = `${start}>${edge.to}`;
       const selected = nextPath.every((part) => highlighted.has(`${part.from}>${part.to}`));
       const existing = output.get(key);
-      output.set(key, { ...edge, from: start, highlighted: selected || existing?.highlighted || false });
+      const type = ['merged', 'consolidated', 'expanded', 'renamed', 'moved', 'continues'].find(type => nextPath.some(part => part.type === type)) || edge.type;
+      output.set(key, { ...edge, from: start, type, path: nextPath,
+        note: nextPath.length > 1 ? nextPath.map(part => `${part.from} → ${part.to}: ${part.note}`).join('; ') : edge.note,
+        highlighted: selected || existing?.highlighted || false });
       return;
     }
     const nextVisited = new Set([...visited, edge.to]);
@@ -98,7 +101,7 @@ export function rowCues(family, years) {
       const previous = editionYears[index - 1];
       const next = editionYears[index + 1];
       cues.set(key, {
-        isNew: index > 0 && !incoming,
+        isNew: item.isNew === true || (index > 0 && !incoming),
         leaves: next !== undefined && !outgoing ? next : null,
         hiddenBefore: incoming && !connections.some((edge) => edge.to === key) ? previous : null,
         hiddenAfter: outgoing && !connections.some((edge) => edge.from === key) ? next : null,

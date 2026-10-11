@@ -33,7 +33,7 @@ test('100% catalog coverage, one unique layout per concept and fully bilingual a
       const section = attackSectionHTML(family, year, id, t);
       assert.match(section, /<pre><code>[^]+?<mark>[^]+?<\/mark>[^]*?<\/code><\/pre>/, key);
     }
-    assert.equal(attackSectionHTML(family, year, id).match(/<pre>[^]*?<\/pre>/)[0], attackSectionHTML(family, year, id, x => translate(x,'en')).match(/<pre>[^]*?<\/pre>/)[0]);
+
   }
   assert.equal(concepts.size, 30);
 });

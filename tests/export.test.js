@@ -94,7 +94,8 @@ test('detail Markdown embeds the live SVG, translated attack, status, fences, so
     assert.match(svg, /<style>/);
     assert.ok(md.includes(translate(getVisual('web', 2025, 'A05').description, language)));
     assert.ok(md.includes(edition.status));
-    assert.ok(md.includes('```python\nname = request.query'));
+    assert.ok(md.includes(`name = "' OR '1'='1"`));
+    assert.ok(md.includes(language === 'en' ? 'Pseudocode' : 'Pseudocódigo'));
     assert.ok(md.includes('```text\n' + translate(getVisual('web', 2025, 'A05').fix, language)));
     assert.doesNotMatch(md, /\[\[/);
     assert.ok(md.includes(language === 'en' ? '## How the attack works' : '## Cómo funciona el ataque'));

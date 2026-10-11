@@ -17,7 +17,8 @@ export function lineageEditions(family, lineage, selectedKey) {
     groupFor(item.year).nodes.push({
       ...item, selected: item.key === selectedKey, previous,
       delta: previous ? previous.rank - item.rank : null,
-      relations, merges, isNew: !incoming.length,
+      relations, merges, isNew: cues.get(item.key)?.isNew ?? false,
+      firstEdition: item.year === Math.min(...family.editions.map(edition => edition.year)),
     });
     const leaves = cues.get(item.key)?.leaves;
     if (leaves) groupFor(leaves).departures.push(item);

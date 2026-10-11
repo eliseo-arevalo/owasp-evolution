@@ -131,7 +131,7 @@ test('Chrome v5: consistent section headers, sober scroll tabs and two-line line
       for (const [index, id] of ['overview', 'attack', 'example', 'prevention', 'lineage', 'sources'].entries()) {
         assert.equal(await page.locator(`#detail-page #detail-${id} h2`).textContent(), labels[index]);
       }
-      assert.equal(await page.locator('#detail-example .example-chip').textContent(), 'Vulnerable');
+      assert.equal(await page.locator('#detail-example .example-chip').textContent(), language === 'en' ? 'Vulnerable · Pseudocode' : 'Vulnerable · Pseudocódigo');
       assert.equal(await page.locator('#detail-page .attack-fix strong').textContent(), language === 'en' ? 'Fix:' : 'Corrección:');
       const tabs = page.locator('#detail-page .detail-section-nav');
       assert.equal(await tabs.evaluate(el => getComputedStyle(el).position), 'sticky');

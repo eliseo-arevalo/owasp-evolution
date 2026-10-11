@@ -13,7 +13,7 @@ test('edition groups retain every official lineage node and chronological years 
     assert.deepEqual(groups.map(group => group.year), [...new Set(groups.map(group => group.year))].sort((a,b) => a-b));
     assert.equal(groups.flatMap(group => group.nodes).filter(node => node.selected).length, 1);
     for (const node of groups.flatMap(group => group.nodes)) {
-      assert.equal(node.isNew, !lineage.edges.some(edge => edge.to === node.key));
+      assert.equal(node.isNew, !lineage.edges.some(edge => edge.to === node.key) && node.year > Math.min(...family.editions.map(e => e.year)));
       assert.equal(node.delta, node.previous ? node.previous.rank - node.rank : null);
     }
   }
@@ -40,7 +40,8 @@ test('A03 preserves renamed/expanded connections, rank gains and same-rank trans
 test('an isolated category records a new state and a departure in the following edition', () => {
   const family = catalog.families.web;
   const groups = lineageEditions(family, getLineage(catalog, 'web', 2013, 'A8'), '2013:A8');
-  assert.equal(groups[0].nodes[0].isNew, true);
+  assert.equal(groups[0].nodes[0].isNew, false);
+  assert.equal(groups[0].nodes[0].firstEdition, true);
   assert.equal(groups.at(-1).year, 2017);
   assert.equal(groups.at(-1).departures[0].id, 'A8');
 });

@@ -1,10 +1,25 @@
 const WEB_2013_SOURCE = 'https://wiki.owasp.org/images/f/f8/OWASP_Top_10_-_2013.pdf';
-const WEB_2017_SOURCE = 'https://github.com/OWASP/Top10/blob/master/2017/OWASP%20Top%2010-2017%20(en).pdf';
+const web2017Source = file => `https://owasp.org/www-project-top-ten/2017/${file}`;
 
 const web2021Source = (file) => `https://owasp.org/Top10/2021/${file}/`;
 const web2025Source = (file) => `https://owasp.org/Top10/2025/${file}/`;
-const llm2025Source = (file) => `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2025/${file}.md`;
-const llm2026Source = (file) => `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/${file}.md`;
+const llm2025Pages = {
+  "LLM01": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/",
+  "LLM02": "https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/",
+  "LLM03": "https://genai.owasp.org/llmrisk/llm032025-supply-chain/",
+  "LLM04": "https://genai.owasp.org/llmrisk/llm042025-data-and-model-poisoning/",
+  "LLM05": "https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/",
+  "LLM06": "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/",
+  "LLM07": "https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/",
+  "LLM08": "https://genai.owasp.org/llmrisk/llm082025-vector-and-embedding-weaknesses/",
+  "LLM09": "https://genai.owasp.org/llmrisk/llm092025-misinformation/",
+  "LLM10": "https://genai.owasp.org/llmrisk/llm102025-unbounded-consumption/"
+};
+const llm2025Source = file => llm2025Pages[file.split("_")[0]];
+// Keep browser-verified GitHub pages; use official raw files for upstream failures.
+const llm2026Source = file => ['LLM06_UnboundedConsumption', 'LLM09_VectorAndEmbeddingWeaknesses'].includes(file)
+  ? `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/${file}.md`
+  : `https://raw.githubusercontent.com/GenAI-Security-Project/GenAI-LLM-Top10/main/2026/final/${file}.md`;
 
 const webProfiles = {
   injection: {
@@ -61,7 +76,7 @@ const webProfiles = {
   },
   redirect: {
     summary: 'Redirecciones controladas por parámetros no validados pueden enviar a la víctima a sitios maliciosos o encadenarse con otros ataques.',
-    prevention: ['Aceptar solo destinos relativos o incluidos en una lista permitida.', 'No construir redirecciones directamente desde entradas del usuario.', 'Mostrar confirmación clara cuando sea necesario abandonar el dominio.'],
+    prevention: ['Aceptar solo rutas validadas del mismo origen o un mapeo explícito de destinos; rechazar referencias como //host.', 'No construir redirecciones directamente desde entradas del usuario.', 'Mostrar confirmación clara cuando sea necesario abandonar el dominio.'],
   },
   insecureDesign: {
     summary: 'El sistema carece de controles necesarios desde el diseño, incluso si la implementación no contiene un error puntual. El riesgo se origina en requisitos, límites de confianza y flujos inseguros.',
@@ -103,16 +118,16 @@ const web2013 = [
 ];
 
 const web2017 = [
-  webItem('A1', 1, 'Injection', 'injection', WEB_2017_SOURCE, 'Continúa'),
-  webItem('A2', 2, 'Broken Authentication', 'authentication', WEB_2017_SOURCE, 'Renombrada y baja en 2021'),
-  webItem('A3', 3, 'Sensitive Data Exposure', 'crypto', WEB_2017_SOURCE, 'Renombrada en 2021'),
-  webItem('A4', 4, 'XML External Entities (XXE)', 'xxe', WEB_2017_SOURCE, 'Se integra en Security Misconfiguration'),
-  webItem('A5', 5, 'Broken Access Control', 'access', WEB_2017_SOURCE, 'Sube al puesto 1 en 2021'),
-  webItem('A6', 6, 'Security Misconfiguration', 'misconfiguration', WEB_2017_SOURCE, 'Se amplía con XXE en 2021'),
-  webItem('A7', 7, 'Cross-Site Scripting (XSS)', 'xss', WEB_2017_SOURCE, 'Se integra en Injection'),
-  webItem('A8', 8, 'Insecure Deserialization', 'deserialization', WEB_2017_SOURCE, 'Se amplía en una categoría nueva'),
-  webItem('A9', 9, 'Using Components with Known Vulnerabilities', 'components', WEB_2017_SOURCE, 'Renombrada y sube en 2021'),
-  webItem('A10', 10, 'Insufficient Logging & Monitoring', 'logging', WEB_2017_SOURCE, 'Renombrada y sube en 2021'),
+  webItem('A1', 1, 'Injection', 'injection', web2017Source('A1_2017-Injection'), 'Continúa'),
+  webItem('A2', 2, 'Broken Authentication', 'authentication', web2017Source('A2_2017-Broken_Authentication'), 'Renombrada y baja en 2021'),
+  webItem('A3', 3, 'Sensitive Data Exposure', 'crypto', web2017Source('A3_2017-Sensitive_Data_Exposure'), 'Renombrada en 2021'),
+  webItem('A4', 4, 'XML External Entities (XXE)', 'xxe', web2017Source('A4_2017-XML_External_Entities_(XXE)'), 'Se integra en Security Misconfiguration'),
+  webItem('A5', 5, 'Broken Access Control', 'access', web2017Source('A5_2017-Broken_Access_Control'), 'Sube al puesto 1 en 2021'),
+  webItem('A6', 6, 'Security Misconfiguration', 'misconfiguration', web2017Source('A6_2017-Security_Misconfiguration'), 'Se amplía con XXE en 2021'),
+  webItem('A7', 7, 'Cross-Site Scripting (XSS)', 'xss', web2017Source('A7_2017-Cross-Site_Scripting_(XSS)'), 'Se integra en Injection'),
+  webItem('A8', 8, 'Insecure Deserialization', 'deserialization', web2017Source('A8_2017-Insecure_Deserialization'), 'Se amplía en una categoría nueva'),
+  webItem('A9', 9, 'Using Components with Known Vulnerabilities', 'components', web2017Source('A9_2017-Using_Components_with_Known_Vulnerabilities'), 'Renombrada y sube en 2021'),
+  webItem('A10', 10, 'Insufficient Logging & Monitoring', 'logging', web2017Source('A10_2017-Insufficient_Logging%2526Monitoring'), 'Renombrada y sube en 2021'),
 ];
 
 const web2021 = [
@@ -147,7 +162,7 @@ function llmItem(id, rank, name, summary, prevention, source, change = '') {
 
 const llm2025 = [
   llmItem('LLM01', 1, 'Prompt Injection', 'Entradas directas, indirectas o multimodales alteran el comportamiento previsto del modelo y pueden provocar divulgación de datos o acciones no autorizadas.', ['Separar y marcar contenido externo no confiable.', 'Aplicar mínimo privilegio y aprobación humana para acciones sensibles.', 'Validar formatos de salida y realizar pruebas adversarias periódicas.'], llm2025Source('LLM01_PromptInjection'), 'Permanece en el puesto 1'),
-  llmItem('LLM02', 2, 'Sensitive Information Disclosure', 'El modelo o la aplicación revelan PII, credenciales, propiedad intelectual u otra información confidencial en respuestas, trazas o datos usados por el sistema.', ['Minimizar, redactar o tokenizar datos sensibles.', 'Aplicar controles de acceso sobre fuentes y contexto.', 'Definir retención y educar a los usuarios para no introducir secretos.'], llm2025Source('LLM02_SensitiveInformationDisclosure'), 'Permanece en el puesto 2'),
+  llmItem('LLM02', 2, 'Sensitive Information Disclosure', 'El modelo o la aplicación revelan PII, credenciales, propiedad intelectual u otra información confidencial en respuestas, trazas o datos usados por el sistema.', ['Minimizar, eliminar o enmascarar datos sensibles.', 'Aplicar controles de acceso sobre fuentes y contexto.', 'Definir retención y educar a los usuarios para no introducir secretos.'], llm2025Source('LLM02_SensitiveInformationDisclosure'), 'Permanece en el puesto 2'),
   llmItem('LLM03', 3, 'Supply Chain', 'Modelos, datos, adaptadores, dependencias y plataformas de terceros pueden estar manipulados, comprometidos o sin mantenimiento.', ['Evaluar proveedores, fuentes y licencias.', 'Mantener SBOM o AIBOM y verificar firmas y hashes.', 'Parchear y someter artefactos de terceros a evaluación y red teaming.'], llm2025Source('LLM03_SupplyChain'), 'Baja al puesto 4 en 2026'),
   llmItem('LLM04', 4, 'Data and Model Poisoning', 'La manipulación de datos, embeddings o artefactos del modelo introduce sesgos, degradación o puertas traseras activadas por condiciones específicas.', ['Registrar procedencia y versiones de datos y modelos.', 'Aislar fuentes no verificadas y detectar anomalías.', 'Monitorizar comportamiento y ejecutar pruebas de robustez.'], llm2025Source('LLM04_DataModelPoisoning'), 'Baja al puesto 5 en 2026'),
   llmItem('LLM05', 5, 'Improper Output Handling', 'Salidas del LLM pasan a navegadores, bases de datos, shells u otros sistemas sin validación, provocando inyección, SSRF o ejecución de código.', ['Tratar toda salida como entrada no confiable.', 'Aplicar codificación contextual y consultas parametrizadas.', 'Registrar y monitorizar patrones anómalos.'], llm2025Source('LLM05_ImproperOutputHandling'), 'Baja al puesto 10 en 2026'),
@@ -160,7 +175,7 @@ const llm2025 = [
 
 const llm2026 = [
   llmItem('LLM01', 1, 'Prompt Injection', 'Cualquier contenido que llegue al contexto —usuario, RAG, herramientas, memoria o medios— puede alterar el comportamiento. La defensa debe asumir que la inyección ocurrirá y limitar su impacto.', ['Validar esquemas de salida en código confiable.', 'Mantener credenciales y cambios de estado fuera del modelo.', 'Exigir confirmación humana para acciones privilegiadas o irreversibles.'], llm2026Source('LLM01_PromptInjection'), 'Continúa en el puesto 1'),
-  llmItem('LLM02', 2, 'Sensitive Information Disclosure', 'La divulgación puede aparecer en respuestas, argumentos de herramientas, logs, embeddings, cachés o canales laterales durante todo el ciclo del sistema.', ['Clasificar, minimizar y depurar datos antes de incorporarlos.', 'Autorizar documentos dentro de la consulta de recuperación.', 'Redactar respuestas y logs y proteger embeddings y cachés.'], llm2026Source('LLM02_SensitiveInformationDisclosure'), 'Continúa en el puesto 2'),
+  llmItem('LLM02', 2, 'Sensitive Information Disclosure', 'La divulgación puede aparecer en respuestas, argumentos de herramientas, logs, embeddings, cachés o canales laterales durante todo el ciclo del sistema.', ['Clasificar, minimizar y depurar datos antes de incorporarlos.', 'Autorizar documentos dentro de la consulta de recuperación.', 'Depurar respuestas y registros para eliminar datos sensibles y proteger embeddings y cachés.'], llm2026Source('LLM02_SensitiveInformationDisclosure'), 'Continúa en el puesto 2'),
   llmItem('LLM03', 3, 'Excessive Agency', 'Una aplicación con demasiadas herramientas, permisos o autonomía convierte salidas erróneas o manipuladas en acciones reales perjudiciales.', ['Ofrecer solo funciones mínimas con esquemas estrictos.', 'Conservar el contexto de autorización del usuario.', 'Mediar acciones con políticas, aprobación humana y circuit breakers.'], llm2026Source('LLM03_ExcessiveAgency'), 'Sube desde el puesto 6'),
   llmItem('LLM04', 4, 'Supply Chain', 'La cadena incluye código, datos, modelos, adaptadores, formatos y plataformas. Artefactos sin procedencia o referencias mutables pueden introducir comportamiento oculto.', ['Inventariar artefactos con SBOM/AIBOM firmados.', 'Usar referencias por digest y verificar firmas y hashes.', 'Controlar conversión, merge, cuantización y promoción.'], llm2026Source('LLM04_SupplyChain'), 'Baja desde el puesto 3'),
   llmItem('LLM05', 5, 'Data and Model Poisoning', 'Datos o artefactos manipulados corrompen de forma duradera aprendizaje, embeddings, RAG o feedback continuo y pueden ocultar puertas traseras.', ['Mantener linaje, firmas, hashes y versiones recuperables.', 'Restringir la inyección de datos y supervisar reentrenamiento.', 'Monitorizar deriva, anomalías y desencadenantes.'], llm2026Source('LLM05_DataModelPoisoning'), 'Baja desde el puesto 4'),

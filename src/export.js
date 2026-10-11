@@ -59,8 +59,8 @@ export function exportMarkdown(family, year, item, language = 'es', { years = fa
   if (visual) {
     // Preserve the live diagram's geometry and labels, with styles baked in for Markdown readers.
     const diagram = diagramSVG(family.id, year, item.id, t).replace(/(<svg[^>]*>)/, '$1<style>text{font:11px Arial,sans-serif;fill:#eeeeee}.attack-box{fill:#222;stroke:#777}.attack-hot{stroke:#e49b79}.attack-path{fill:none;stroke:#e49b79;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.attack-muted{stroke:#999}.attack-accent{fill:#e49b79}.icon-secondary{opacity:.22}svg{color:#eeeeee}rect{stroke-width:1}</style><rect width="320" height="196" fill="#111"/>');
-    const example = visual.example.replace(/\[\[([^]*?)\]\]/g, '$1');
-    attack = `\n\n## ${t('Cómo funciona el ataque')}\n\n${markdown(t(visual.description))}\n\n![${markdown(t('Cómo funciona el ataque'))}](data:image/svg+xml;base64,${base64(diagram)})\n\n## ${t('Ejemplo')} · ${t('Vulnerable')}\n\n${fence(example, visual.language || codeLanguage(example))}\n\n## ${t('Corrección:').replace(/:$/, '')}\n\n${fence(t(visual.fix), 'text')}`;
+    const example = t(visual.example).replace(/\[\[([^]*?)\]\]/g, '$1');
+    attack = `\n\n## ${t('Cómo funciona el ataque')}\n\n${markdown(t(visual.description))}\n\n![${markdown(t('Cómo funciona el ataque'))}](data:image/svg+xml;base64,${base64(diagram)})\n\n## ${t('Ejemplo')} · ${t('Vulnerable')} · ${t('Pseudocódigo')}\n\n${fence(example, visual.language || codeLanguage(example))}\n\n## ${t('Corrección:').replace(/:$/, '')}\n\n${fence(t(visual.fix), 'text')}${visual.advisory ? `\n\n[${t('Aviso de seguridad')}: CVE-2017-5638](${visual.advisory})` : ''}`;
   }
   const related = links.map(edge => {
     const target = edge.from === key ? edge.to : edge.from;
