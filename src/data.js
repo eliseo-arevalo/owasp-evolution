@@ -16,10 +16,7 @@ const llm2025Pages = {
   "LLM10": "https://genai.owasp.org/llmrisk/llm102025-unbounded-consumption/"
 };
 const llm2025Source = file => llm2025Pages[file.split("_")[0]];
-// Keep browser-verified GitHub pages; use official raw files for upstream failures.
-const llm2026Source = file => ['LLM06_UnboundedConsumption', 'LLM09_VectorAndEmbeddingWeaknesses'].includes(file)
-  ? `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/${file}.md`
-  : `https://raw.githubusercontent.com/GenAI-Security-Project/GenAI-LLM-Top10/main/2026/final/${file}.md`;
+const llm2026Source = file => `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/${file}.md`;
 
 const webProfiles = {
   injection: {

@@ -24,8 +24,26 @@ test('every edition contains exactly ten uniquely identified categories', () => 
 
 test('all category sources are official OWASP URLs', () => {
   for (const risk of flattenCatalog(catalog)) {
-    assert.match(new URL(risk.source).hostname, /(^|\.)owasp\.org$|(^|\.)github\.com$|(^|\.)githubusercontent\.com$/);
+    assert.match(new URL(risk.source).hostname, /(^|\.)owasp\.org$|(^|\.)github\.com$/);
   }
+});
+
+test('all ten LLM 2026 sources use rendered GitHub pages for their category', () => {
+  const files = [
+    'LLM01_PromptInjection',
+    'LLM02_SensitiveInformationDisclosure',
+    'LLM03_ExcessiveAgency',
+    'LLM04_SupplyChain',
+    'LLM05_DataModelPoisoning',
+    'LLM06_UnboundedConsumption',
+    'LLM07_Misinformation',
+    'LLM08_HiddenContextExposure',
+    'LLM09_VectorAndEmbeddingWeaknesses',
+    'LLM10_ImproperOutputHandling',
+  ];
+  const edition = catalog.families.llm.editions.find(({ year }) => year === 2026);
+  assert.deepEqual(edition.items.map(({ source }) => source), files.map(file =>
+    `https://github.com/GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/${file}.md`));
 });
 
 test('all lineage edges reference existing adjacent-edition categories', () => {

@@ -53,6 +53,8 @@ Para añadir una edición, incorporar sus diez categorías y relaciones con la e
 
 Los datos enlazan a documentación y repositorios oficiales de OWASP. Las explicaciones y prevención son resúmenes educativos, no citas literales ni un inventario exhaustivo de vulnerabilidades. Este proyecto no está afiliado oficialmente con OWASP Foundation.
 
+Las diez fuentes de LLM 2026 usan páginas de GitHub bajo `GenAI-Security-Project/GenAI-LLM-Top10/blob/main/2026/final/`, donde el Markdown se muestra con formato. No se usan archivos raw como alternativa: los errores 503/429 observados durante la auditoría se debían a límites de solicitudes de este entorno, no a enlaces incorrectos. `genai.owasp.org` no dispone de páginas por categoría para 2026; las rutas probadas `llm012026-*` devuelven 404.
+
 ## Support
 
 [Buy me a coffee / Invítame un café](https://ko-fi.com/oclazi) — Apoya el proyecto / Support the project.
