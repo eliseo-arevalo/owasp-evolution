@@ -52,9 +52,17 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
       await page.locator('#detail-modal[open] .attack-diagram').waitFor();
       await page.evaluate(() => document.fonts.ready);
       const motion = await page.locator('#detail-page .attack-diagram').evaluate(async svg => {
+        // Ancestor dock transitions change width independently of SVG draw. Settle
+        // those first, then replay the draw at a known timeline origin.
+        for (let parent = svg.parentElement; parent; parent = parent.parentElement) {
+          await Promise.all(parent.getAnimations().map(a => a.finished.catch(() => {})));
+        }
+        const animations = svg.getAnimations({ subtree: true });
+        animations.forEach(a => { a.pause(); a.currentTime = 0; });
         const initial = svg.getBoundingClientRect().toJSON();
         const timings = svg.getAnimations({ subtree: true }).map(animation => animation.effect.getComputedTiming());
         const frames = [];
+        animations.forEach(a => a.play());
         await new Promise(resolve => {
           const start = performance.now();
           const sample = () => {
@@ -65,6 +73,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
           };
           sample();
         });
+        await Promise.all(animations.map(a => a.finished));
         return { initial, frames, endTimes: timings.map(t => t.endTime), delays: timings.map(t => t.delay),
           expected: svg.querySelectorAll('.attack-node, .attack-path').length,
           opacity: [...svg.querySelectorAll('.attack-node')].map(node => getComputedStyle(node).opacity),
@@ -73,6 +82,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
       assert.equal(motion.endTimes.length, motion.expected);
       assert.ok(motion.endTimes.every(end => end < 600));
       assert.ok(new Set(motion.delays).size > 2);
+      assert.ok(motion.frames.length >= 3, 'sample the draw across multiple painted frames');
       assert.ok(motion.frames.every(frame => frame.width === motion.initial.width && frame.height === motion.initial.height));
       assert.ok(motion.opacity.every(value => value === '1'));
       assert.ok(motion.dash.every(value => value === '0px'));
@@ -85,7 +95,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
         assert.equal(await page.locator('#detail-page .attack-diagram').getAttribute('data-layout'), getVisual('web', 2025, item.id).layout);
         assert.equal(await page.locator('#detail-page .detail-icon svg').getAttribute('aria-hidden'), 'true');
         assert.equal(await page.locator('#detail-page .detail-icon svg').getAttribute('data-icon'), getVisual('web', 2025, item.id).icon);
-        assert.equal(await page.locator('#detail-page pre code').textContent(), unmark(getVisual('web', 2025, item.id).example));
+        assert.equal(await page.locator('#detail-page pre code').textContent(), unmark(t(getVisual('web', 2025, item.id).example)));
         assert.equal(await page.locator('#detail-page .attack-fix').textContent(), `${t('Corrección:')} ${t(getVisual('web', 2025, item.id).fix)}`);
         assert.equal(await page.locator('#detail-page .source-link').getAttribute('href'), item.source);
         await page.evaluate(() => document.fonts.ready);
@@ -153,7 +163,7 @@ test('Chrome: unique bilingual examples, stable draw, dock layouts, themes and v
       await staticPage.goto(route('A05', language));
       await staticPage.locator('#prerender .attack-diagram').waitFor({ state: 'visible' });
       assert.equal(await staticPage.locator('#prerender svg[role="img"]').count(), 2);
-      assert.equal(await staticPage.locator('#prerender pre code').textContent(), unmark(getVisual('web', 2025, 'A05').example));
+      assert.equal(await staticPage.locator('#prerender pre code').textContent(), unmark(translate(getVisual('web', 2025, 'A05').example, language)));
       assert.equal(await staticPage.locator('#prerender .attack-fix strong').textContent(), translate('Corrección:', language));
       await staticPage.close();
     }

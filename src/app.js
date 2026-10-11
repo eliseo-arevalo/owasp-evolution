@@ -270,7 +270,7 @@ function renderTimeline(family, ease = false) {
       for (const card of retained.querySelectorAll('.risk-card')) {
         const cue = cues.get(card.dataset.key);
         const risk = edition.items.find((item) => item.id === idOf(card.dataset.key));
-        const label = `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${edition.year}`;
+        const label = `${String(risk.rank).padStart(2, '0')} ${risk.name} ${risk.summary}, ${risk.id}, ${language === 'es' ? 'edición' : 'edition'} ${edition.year}`;
         card.querySelector('.risk-focus').setAttribute('aria-label', [label, ...cueDescriptions(cue)].join(', '));
       }
       continue;
@@ -293,7 +293,7 @@ function renderTimeline(family, ease = false) {
       button.type = 'button';
       button.tabIndex = -1;
       card.dataset.key = risk.key;
-      const label = `${risk.id}: ${risk.name}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`;
+      const label = `${String(risk.rank).padStart(2, '0')} ${risk.name} ${risk.summary}, ${risk.id}, ${language === 'es' ? 'edición' : 'edition'} ${risk.year}`;
       button.setAttribute('aria-label', [label, ...cueDescriptions(cue)].join(', '));
       button.title = [risk.name, `${risk.id} · ${risk.year}`, risk.change, t('Enter: abrir detalle · ↑↓: navegar')].filter(Boolean).join('\n');
 
@@ -842,6 +842,7 @@ function renderLineage(family, risk, lineage) {
     if (group.nodes.some(item => item.selected)) entry.classList.add('has-current');
     const year = node('span', 'lineage-year', String(group.year));
     const content = node('div', 'lineage-edition');
+    if (group.nodes.some(item => item.firstEdition && !item.isNew)) content.append(node('span', 'lineage-note lineage-origin', t('Primera edición mostrada')));
     const allNew = group.nodes.length > 0 && group.nodes.every(item => item.isNew);
     if (allNew) content.append(node('span', 'lineage-note lineage-origin', `${t(group.nodes.length > 1 ? 'Nuevas en' : 'Nueva en')} ${group.year}`));
     for (const item of group.nodes) {
@@ -850,7 +851,7 @@ function renderLineage(family, risk, lineage) {
       const link = node('button', 'lineage-link');
       link.type = 'button';
       link.dataset.key = item.key;
-      link.setAttribute('aria-label', `${item.year} · ${item.id} · ${item.name}`);
+      link.setAttribute('aria-label', `${item.id} ${item.name}, ${item.year}`);
       if (item.selected) link.setAttribute('aria-current', 'true');
       link.append(node('span', 'lineage-id', item.id), node('span', 'lineage-title', item.name));
       link.addEventListener('click', () => navigateItem(item));
@@ -859,7 +860,8 @@ function renderLineage(family, risk, lineage) {
       rank.dataset.delta = item.delta ?? '';
       rank.dataset.movement = item.delta === null ? 'new' : item.delta > 0 ? 'up' : item.delta < 0 ? 'down' : 'same';
       rank.textContent = item.previous ? `#${item.previous.rank} → #${item.rank} ${item.delta > 0 ? '↑' : item.delta < 0 ? '↓' : '='}${Math.abs(item.delta)}` : `#${item.rank}`;
-      rank.setAttribute('aria-label', item.previous ? `${t('Puesto')} ${item.previous.rank} → ${item.rank}; ${t(item.delta > 0 ? 'Sube' : item.delta < 0 ? 'Baja' : 'Sin cambio')} ${Math.abs(item.delta)}` : `${t('Puesto')} ${item.rank}`);
+      rank.setAttribute('aria-hidden', 'true');
+      meta.append(node('span', 'sr-only', item.previous ? `${t('Puesto')} ${item.previous.rank} → ${item.rank}; ${t(item.delta > 0 ? 'Sube' : item.delta < 0 ? 'Baja' : 'Sin cambio')} ${Math.abs(item.delta)}` : `${t('Puesto')} ${item.rank}`));
       meta.append(rank);
       for (const type of item.relations) meta.append(node('span', `lineage-chip line-${relationKind(type)}`, t(relationshipLabel(type))));
       if (item.isNew && !allNew) meta.append(node('span', 'lineage-note', `${t('Nueva en')} ${item.year}`));
@@ -881,7 +883,7 @@ function renderLineage(family, risk, lineage) {
             button.type = 'button';
             button.dataset.key = source.key;
             button.dataset.tooltip = source.name;
-            button.setAttribute('aria-label', `${source.year} · ${source.id} · ${source.name}`);
+            button.setAttribute('aria-label', `${source.id}, ${source.name}, ${source.year}`);
             button.addEventListener('click', () => navigateItem(source));
             row.append(button);
           });
@@ -1109,6 +1111,7 @@ function drawConnections() {
     }
     path.setAttribute('d', d);
     path.hitArea.setAttribute('d', d);
+    path.hitArea.dataset.tooltip = edge.note;
     reveals.get(key)?.stroke.setAttribute('d', d);
     path.classList.toggle('is-highlighted', litEdges.has(key));
     if (path === cursor) cursor = cursor.nextSibling;
@@ -1122,7 +1125,10 @@ function drawConnections() {
   }
 }
 
+let activeSearchIndex = -1;
 function renderSearchResults(query) {
+  activeSearchIndex = -1;
+  elements.search.removeAttribute('aria-activedescendant');
   const familyId = currentRoute.family;
   const results = searchRisks(catalog, query, familyId).slice(0, 12);
   elements.searchResults.replaceChildren();
@@ -1138,6 +1144,9 @@ function renderSearchResults(query) {
     for (const result of results) {
       const button = node('button', 'search-result');
       button.type = 'button';
+      button.id = `search-option-${elements.searchResults.children.length}`;
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', 'false');
       button.append(
         node('span', 'search-result-id', result.id),
         node('span', 'search-result-name', result.name),
@@ -1155,10 +1164,14 @@ function renderSearchResults(query) {
     }
   }
   elements.searchResults.hidden = false;
+  elements.search.setAttribute('aria-expanded', 'true');
 }
 
 function hideSearchResults() {
   elements.searchResults.hidden = true;
+  elements.search.setAttribute('aria-expanded', 'false');
+  elements.search.removeAttribute('aria-activedescendant');
+  activeSearchIndex = -1;
 }
 
 let dockLayoutFrame = 0;
@@ -1358,12 +1371,15 @@ function updateMetadata(family, selected) {
   const route = category ? currentRoute : isHome ? null : { family: family.id };
   const origin = new URL(document.querySelector('link[rel="canonical"]').href).origin;
   const title = category ? `${selected.id}: ${selected.name} · ${selected.year} · ${language.toUpperCase()} · OWASP Evolution` : isHome ? `OWASP Evolution · ${language === 'es' ? 'Evolución de riesgos' : 'Risk evolution'}` : `${family.label} · ${language.toUpperCase()} · OWASP Evolution`;
-  const description = category ? `${selected.id} (${selected.year}): ${selected.summary}` : isHome ? t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.') : family.description;
+  const fullDescription = category ? `${selected.id} (${selected.year}): ${selected.summary}` : isHome ? t('Explorador interactivo de la evolución del OWASP Top 10 para aplicaciones web y sistemas GenAI/LLM.') : family.description;
+  const description = fullDescription.length <= 160 ? fullDescription : fullDescription.slice(0, 157).replace(/\s+\S*$/, '') + '…';
   document.title = title;
   document.querySelector('link[rel="canonical"]').href = origin + pathFor(route, sourceCatalog, language);
   for (const link of document.querySelectorAll('link[hreflang]')) link.href = origin + pathFor(route, sourceCatalog, link.hreflang === 'es' ? 'es' : 'en');
   for (const [selector, content] of [
     ['meta[name="description"]', description], ['meta[property="og:title"]', title], ['meta[name="twitter:title"]', title],
+    ['meta[property="og:locale"]', language === 'es' ? 'es_ES' : 'en_US'],
+    ['meta[property="og:locale:alternate"]', language === 'es' ? 'en_US' : 'es_ES'],
     ['meta[property="og:description"]', description], ['meta[name="twitter:description"]', description],
     ['meta[property="og:url"]', origin + pathFor(route, sourceCatalog, language)],
     ['meta[property="og:image"]', `${origin}/assets/og-${isHome ? 'web' : family.id}-${language}.png`],
@@ -1488,6 +1504,25 @@ elements.detailModal.addEventListener('cancel', (event) => {
   if (mobileDialog) returnToMatrix();
   else if (fullscreen) toggleFullscreen();
   else returnToMatrix();
+});
+elements.search.addEventListener('keydown', event => {
+  if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) return;
+  if (event.key === 'Escape') {
+    event.preventDefault(); event.stopPropagation(); hideSearchResults(); return;
+  }
+  if (elements.searchResults.hidden) renderSearchResults(elements.search.value);
+  const options = [...elements.searchResults.querySelectorAll('[role="option"]')];
+  if (!options.length) return;
+  if (event.key === 'Enter') {
+    if (activeSearchIndex >= 0) { event.preventDefault(); options[activeSearchIndex].click(); }
+    return;
+  }
+  event.preventDefault();
+  activeSearchIndex = activeSearchIndex < 0 ? (event.key === 'ArrowDown' ? 0 : options.length - 1)
+    : (activeSearchIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+  options.forEach((option, i) => option.setAttribute('aria-selected', String(i === activeSearchIndex)));
+  elements.search.setAttribute('aria-activedescendant', options[activeSearchIndex].id);
+  options[activeSearchIndex].scrollIntoView({ block: 'nearest' });
 });
 elements.search.addEventListener('input', (event) => renderSearchResults(event.target.value));
 elements.search.addEventListener('focus', () => renderSearchResults(elements.search.value));

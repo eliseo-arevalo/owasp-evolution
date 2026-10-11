@@ -67,9 +67,9 @@
         <label for="risk-search">Buscar categoría, identificador o concepto</label>
         <div class="search-control">
           <svg aria-hidden="true" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"></circle><path d="m10.5 10.5 3 3"></path></svg>
-          <input id="risk-search" type="search" autocomplete="off" placeholder="Buscar categorías">
+          <input id="risk-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="search-results" aria-expanded="false" autocomplete="off" placeholder="Buscar categorías">
         </div>
-        <div id="search-results" class="search-results" hidden></div>
+        <div id="search-results" role="listbox" aria-label="Resultados de búsqueda" class="search-results" hidden></div>
       </div>
 
       <div id="export-slot"><button class="export-button" type="button" disabled>Exportar</button></div>
@@ -105,7 +105,7 @@
 
     <section class="explorer-shell" data-dock="left">
       <div class="timeline-panel" id="timeline" tabindex="-1">
-        <div class="timeline-scroll" id="timeline-scroll" tabindex="0" aria-label="Matriz de evolución de categorías">
+        <div class="timeline-scroll" id="timeline-scroll" role="region" tabindex="0" aria-label="Matriz de evolución de categorías">
           <div class="timeline-stage" id="timeline-stage">
             <svg class="connector-layer" id="connector-layer" aria-hidden="true"></svg>
             <div class="timeline-grid" id="timeline-grid"></div>

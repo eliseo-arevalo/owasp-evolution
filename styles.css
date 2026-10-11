@@ -1069,3 +1069,5 @@ body.mobile-detail-open { position: fixed; top: var(--locked-scroll-y); width: 1
 .export-menu [role='group'] + [role='group'] { margin-top: 5px; padding-top: 4px; border-top: 1px solid var(--line); }
 .export-section-label { padding: 5px 8px 3px; color: var(--quiet); font: 10px Geist, system-ui, sans-serif; }
 .is-mobile-fullscreen .export-button.detail-action { height: 44px; min-height: 44px; padding: 0 8px; }
+
+.search-result[aria-selected="true"] { outline: 2px solid var(--ink); outline-offset: -2px; background: var(--surface); }
